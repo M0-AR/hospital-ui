@@ -71,6 +71,47 @@ def search_keyword():
             results_text.insert(tk.END, formatted_rows + "\n\n")
 
 
+def read_all_excel_data():
+    data = {}
+    patient_dirs = [dir_name for dir_name in os.listdir('HospitalData') if os.path.isdir(os.path.join('HospitalData', dir_name))]
+
+    for patient_id in patient_dirs:
+        patient_directory = os.path.join('HospitalData', patient_id)
+        excel_files = [f for f in os.listdir(patient_directory) if f.endswith('.xlsx') and f != 'blood_test.xlsx']
+
+        for file in excel_files:
+            filepath = os.path.join(patient_directory, file)
+            df = pd.read_excel(filepath, header=0)
+            data[f"{patient_id}_{file}"] = df
+
+    return data
+
+def search_keyword_all():
+    data_all = read_all_excel_data()
+    keyword = search_entry.get()
+    if not keyword:  # Check if the keyword is empty
+        results_text.delete('1.0', tk.END)
+        messagebox.showwarning("No Keyword Entered", "Please enter a keyword in the search box.")
+        return
+    results_text.delete('1.0', tk.END)
+    for filename, df in data_all.items():
+        rows_with_keyword = df[df.apply(lambda row: row.astype(str).str.contains(keyword, regex=False).any(), axis=1)]
+        if not rows_with_keyword.empty:
+            results_text.insert(tk.END, f"-----------------------------------------\n"
+                                        f"Results found in {filename}:\n"
+                                        f"-----------------------------------------\n")
+            formatted_rows = format_dataframe(rows_with_keyword, keyword)
+            start = 0
+            while True:
+                start = formatted_rows.find("[[[", start)
+                if start == -1:
+                    break
+                results_text.insert(tk.END, formatted_rows[:start])
+                results_text.insert(tk.END, formatted_rows[start + 3:start + 3 + len(keyword)], 'highlight')
+                formatted_rows = formatted_rows[start + 3 + len(keyword):]
+                start = 0
+            results_text.insert(tk.END, formatted_rows + "\n\n")
+
 def load_patient_data():
     patient_id = id_var.get()
     patient_directory = os.path.join('HospitalData', patient_id)
@@ -81,31 +122,55 @@ def load_patient_data():
 root = tk.Tk()
 root.title("Test")
 
-id_var = tk.StringVar()
+root.columnconfigure(0, weight=1)
+root.rowconfigure(0, weight=1)
 
+main_frame = tk.Frame(root)
+main_frame.grid(sticky='nsew', padx=10, pady=10)  # Added padding
+main_frame.columnconfigure(0, weight=1)
+main_frame.rowconfigure(1, weight=1)
+
+id_var = tk.StringVar()
 ids = [dir_name for dir_name in os.listdir('HospitalData') if os.path.isdir(os.path.join('HospitalData', dir_name))]
 id_var.set(ids[0])
 
-id_label = tk.Label(root, text="Select Patient ID:")
-id_label.pack()
+id_label = tk.Label(main_frame, text="Select Patient ID:")
+id_label.grid(row=0, column=0, sticky='w', padx=5, pady=5)
 
-id_picker = ttk.Combobox(root, textvariable=id_var, values=ids)
-id_picker.pack()
+id_picker = ttk.Combobox(main_frame, textvariable=id_var, values=ids)
+id_picker.grid(row=1, column=0, sticky='ew', padx=5, pady=5)
 
-load_button = tk.Button(root, text="Load Patient Data", command=load_patient_data)
-load_button.pack()
+load_button = tk.Button(main_frame, text="Load Patient Data", command=load_patient_data)
+load_button.grid(row=2, column=0, sticky='ew', padx=5, pady=5)
 
-search_label = tk.Label(root, text="Enter a keyword to search:")
-search_label.pack()
+search_label = tk.Label(main_frame, text="Enter a keyword to search:")
+search_label.grid(row=3, column=0, sticky='w', padx=5, pady=5)
 
-search_entry = tk.Entry(root)
-search_entry.pack()
+search_entry = tk.Entry(main_frame)
+search_entry.grid(row=4, column=0, sticky='ew', padx=5, pady=5)
 
-display_button = tk.Button(root, text="Search", command=search_keyword)
-display_button.pack()
+button_frame = tk.Frame(main_frame)
+button_frame.grid(row=5, column=0, sticky='ew', padx=5, pady=5)
 
-results_text = tk.Text(root, height=20, width=80)
-results_text.pack()
-results_text.tag_configure('highlight', foreground='red')  # Create a custom tag with the desired foreground color
+display_button = tk.Button(button_frame, text="Search", command=search_keyword)
+display_button.grid(row=0, column=0)
+
+display_all_button = tk.Button(button_frame, text="Search in All Patients", command=search_keyword_all)
+display_all_button.grid(row=0, column=1)
+
+results_frame = tk.Frame(main_frame)  # A frame to hold the Text widget and the Scrollbar widget
+results_frame.grid(row=6, column=0, sticky='nsew', padx=5, pady=5)
+results_frame.columnconfigure(0, weight=1)
+results_frame.rowconfigure(0, weight=1)
+
+scrollbar = tk.Scrollbar(results_frame)
+scrollbar.grid(row=0, column=1, sticky='ns')
+
+results_text = tk.Text(results_frame, yscrollcommand=scrollbar.set)
+results_text.grid(row=0, column=0, sticky='nsew')
+
+scrollbar.config(command=results_text.yview)  # Link scrollbar to results_text
+
+results_text.tag_configure('highlight', foreground='red')
 
 root.mainloop()
