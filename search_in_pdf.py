@@ -79,57 +79,6 @@ def search_keyword():
         results_text.insert('end', 'No results found for keyword "{}" in patient "{}"'.format(keyword, patient_id))
 
 
-# def search_keyword():
-#     # Get the selected patient ID and keyword
-#     patient_id = id_var.get()
-#     keyword = search_var.get()
-#
-#     global page_texts
-#     num_pages = len(page_texts)
-#
-#     # Remove old highlights
-#     results_text.tag_remove('highlight', '1.0', 'end')
-#
-#     # Search for the keyword in each page of the PDF file
-#     for page_num in range(num_pages):
-#         page_text = page_texts[page_num]
-#         # Highlight all occurrences of the keyword in the page text
-#         start_index = page_text.lower().find(keyword.lower())
-#         while start_index != -1:
-#             end_index = start_index + len(keyword)
-#             line_num, col_num = get_line_col(page_text, start_index - 1)
-#             results_text.tag_add('highlight', f'{line_num}.{col_num}', f'{line_num}.{col_num + len(keyword)}')
-#             # results_text.tag_add('highlight', f'{page_num+1}.{line_num}.{col_num}', f'{page_num+1}.{line_num}.{col_num + len(keyword)}')
-#             start_index = page_text.lower().find(keyword.lower(), end_index)
-#
-#     # Show a message if no results were found
-#     if len(results_text.tag_ranges('highlight')) == 0:
-#         results_text.insert('end', 'No results found for keyword "{}" in patient "{}"'.format(keyword, patient_id))
-
-# def search_keyword():
-#     # Get the selected patient ID and keyword
-#     patient_id = id_var.get()
-#     keyword = search_var.get()
-#
-#     global page_texts
-#     all_text = '\n'.join(page_texts)
-#
-#     # Remove old highlights
-#     results_text.tag_remove('highlight', '1.0', 'end')
-#
-#     # Highlight all occurrences of the keyword in the page text
-#     start_index = all_text.lower().find(keyword.lower())
-#     while start_index != -1:
-#         end_index = start_index + len(keyword)
-#         line_num, col_num = get_line_col(all_text, start_index - 1)
-#         results_text.tag_add('highlight', f'{line_num}.{col_num}', f'{line_num}.{col_num + len(keyword)}')
-#         start_index = all_text.lower().find(keyword.lower(), end_index)
-#
-#     # Show a message if no results were found
-#     if len(results_text.tag_ranges('highlight')) == 0:
-#         results_text.insert('end', 'No results found for keyword "{}" in patient "{}"'.format(keyword, patient_id))
-#
-
 # Initialize the Tkinter root window
 root = tk.Tk()
 root.title("Patient Data Search")
