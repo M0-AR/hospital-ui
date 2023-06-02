@@ -73,7 +73,8 @@ def search_keyword():
 
 def read_all_excel_data():
     data = {}
-    patient_dirs = [dir_name for dir_name in os.listdir('HospitalData') if os.path.isdir(os.path.join('HospitalData', dir_name))]
+    patient_dirs = [dir_name for dir_name in os.listdir('HospitalData') if
+                    os.path.isdir(os.path.join('HospitalData', dir_name))]
 
     for patient_id in patient_dirs:
         patient_directory = os.path.join('HospitalData', patient_id)
@@ -86,6 +87,7 @@ def read_all_excel_data():
 
     return data
 
+
 def search_keyword_all():
     data_all = read_all_excel_data()
     keyword = search_entry.get()
@@ -94,9 +96,15 @@ def search_keyword_all():
         messagebox.showwarning("No Keyword Entered", "Please enter a keyword in the search box.")
         return
     results_text.delete('1.0', tk.END)
+
+    cpr_list = []  # To store cpr numbers where results were found
+
     for filename, df in data_all.items():
         rows_with_keyword = df[df.apply(lambda row: row.astype(str).str.contains(keyword, regex=False).any(), axis=1)]
         if not rows_with_keyword.empty:
+            cpr_number = filename.split('_')[0]  # Extracting cpr number from filename
+            cpr_list.append(cpr_number)  # Storing cpr number
+
             results_text.insert(tk.END, f"-----------------------------------------\n"
                                         f"Results found in {filename}:\n"
                                         f"-----------------------------------------\n")
@@ -112,11 +120,29 @@ def search_keyword_all():
                 start = 0
             results_text.insert(tk.END, formatted_rows + "\n\n")
 
+    if cpr_list:  # If the list is not empty
+        id_picker['values'] = cpr_list  # Update id_var with the new string
+        id_var.set(cpr_list[0])
+    else:
+        messagebox.showwarning("OppppS!", "No matches found.")
+
+
 def load_patient_data():
     patient_id = id_var.get()
     patient_directory = os.path.join('HospitalData', patient_id)
     global data
     data = read_excel_data(patient_directory)
+
+
+def setup_id_picker():
+    global ids
+    ids = [dir_name for dir_name in os.listdir('HospitalData') if os.path.isdir(os.path.join('HospitalData', dir_name))]
+    id_var.set(ids[0])
+
+
+def reset_id_var():
+    id_picker['values'] = ids # Update id_var with the new string
+    id_var.set(ids[0])
 
 
 root = tk.Tk()
@@ -130,18 +156,24 @@ main_frame.grid(sticky='nsew', padx=10, pady=10)  # Added padding
 main_frame.columnconfigure(0, weight=1)
 main_frame.rowconfigure(1, weight=1)
 
-id_var = tk.StringVar()
-ids = [dir_name for dir_name in os.listdir('HospitalData') if os.path.isdir(os.path.join('HospitalData', dir_name))]
-id_var.set(ids[0])
-
 id_label = tk.Label(main_frame, text="Select Patient ID:")
 id_label.grid(row=0, column=0, sticky='w', padx=5, pady=5)
+
+id_var = tk.StringVar()
+ids = None
+setup_id_picker()
 
 id_picker = ttk.Combobox(main_frame, textvariable=id_var, values=ids)
 id_picker.grid(row=1, column=0, sticky='ew', padx=5, pady=5)
 
-load_button = tk.Button(main_frame, text="Load Patient Data", command=load_patient_data)
-load_button.grid(row=2, column=0, sticky='ew', padx=5, pady=5)
+button_frame_row2 = tk.Frame(main_frame)
+button_frame_row2.grid(row=2, column=0, sticky='ew', padx=5, pady=5)
+
+load_button = tk.Button(button_frame_row2, text="Load Patient Data", command=load_patient_data)
+load_button.grid(row=0, column=0, padx=5, pady=5)
+
+reset_button = tk.Button(button_frame_row2, text="Reset Cpr Numbers", command=reset_id_var)
+reset_button.grid(row=0, column=1, padx=5, pady=5)
 
 search_label = tk.Label(main_frame, text="Enter a keyword to search:")
 search_label.grid(row=3, column=0, sticky='w', padx=5, pady=5)
@@ -153,10 +185,10 @@ button_frame = tk.Frame(main_frame)
 button_frame.grid(row=5, column=0, sticky='ew', padx=5, pady=5)
 
 display_button = tk.Button(button_frame, text="Search", command=search_keyword)
-display_button.grid(row=0, column=0)
+display_button.grid(row=0, column=0, padx=5, pady=5)
 
 display_all_button = tk.Button(button_frame, text="Search in All Patients", command=search_keyword_all)
-display_all_button.grid(row=0, column=1)
+display_all_button.grid(row=0, column=1, padx=5, pady=5)
 
 results_frame = tk.Frame(main_frame)  # A frame to hold the Text widget and the Scrollbar widget
 results_frame.grid(row=6, column=0, sticky='nsew', padx=5, pady=5)
