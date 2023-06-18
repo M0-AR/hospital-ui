@@ -171,6 +171,66 @@ earliest_records_df = keep_earliest_records(processed_data)
 # Output the result
 print(earliest_records_df)
 
+
+# Read miba data
+miba_excels = read_excel_data_from_folders('miba.xlsx')
+
+from datetime import datetime
+
+def filter_dataframes(miba_excels, earliest_records_df):
+    # Start with an empty DataFrame
+    filtered_data = pd.DataFrame(columns=['cpr', 'Prøvens art', 'Taget d.', 'Kvantitet'])
+
+    for _, row in earliest_records_df.iterrows():
+        cpr_number = row['cpr']
+        min_date = row['date']  # Get the minimum date from the row
+        min_date_obj = datetime.strptime(min_date, '%d.%m.%Y')  # Convert min_date to datetime object
+
+        for filename, df in miba_excels.items():
+            if filename.startswith(cpr_number):
+                # Convert the 'Taget d.' column to datetime objects with errors='coerce'
+                df['Taget d.'] = pd.to_datetime(df['Taget d.'], format='%d.%m.%Y')
+
+                # Filter rows based on date and 'Prøvens art' starting with 'Blod' or 'Urin'
+                filtered_rows = df[(df['Taget d.'] < min_date_obj) &
+                                   (df['Prøvens art'].str.startswith('Blod') |
+                                    df['Prøvens art'].str.startswith('Urin'))][['Prøvens art', 'Taget d.', 'Kvantitet']]
+                filtered_rows['cpr'] = cpr_number  # Adding the cpr column to the filtered rows
+
+                # Fill empty 'Kvantitet' cells with 'Negative'
+                filtered_rows['Kvantitet'].fillna('Negative', inplace=True)
+
+                if not filtered_rows.empty:
+                    # Concatenate the filtered rows to the final DataFrame
+                    filtered_data = pd.concat([filtered_data, filtered_rows], ignore_index=True)
+
+    # Convert date back to string in the desired format
+    filtered_data['Taget d.'] = filtered_data['Taget d.'].dt.strftime('%d.%m.%Y')
+    return filtered_data
+
+
+# Usage example:
+miba_filtered_data = filter_dataframes(miba_excels, earliest_records_df)
+print(miba_filtered_data)
+
+# Merge the two DataFrames based on the 'cpr' column
+combined_data = pd.merge(earliest_records_df, miba_filtered_data, on='cpr', how='left')
+
+# Display the combined DataFrame
+print(combined_data)
+
+# Get the list of column names
+columns = list(combined_data.columns)
+
+# Move the last columns to index 2
+new_order = columns[:2] + columns[-3:] + columns[2:-3]
+
+# Reorder the columns
+combined_data = combined_data[new_order]
+
+# Display the DataFrame with rearranged columns
+print(combined_data)
+
 # ------------------------------------------------
 # 02
 import pandas as pd
@@ -264,6 +324,26 @@ earliest_records_df = keep_earliest_records(processed_data_no_duplicates)
 # Output the result
 print(earliest_records_df)
 
+# Usage example:
+miba_filtered_data = filter_dataframes(miba_excels, earliest_records_df)
+print(miba_filtered_data)
+
+# Merge the two DataFrames based on the 'cpr' column
+combined_data = pd.merge(earliest_records_df, miba_filtered_data, on='cpr', how='left')
+
+# Display the combined DataFrame
+print(combined_data)
+
+# Get the list of column names
+columns = list(combined_data.columns)
+
+# Move the last columns to index 2
+new_order = columns[:2] + columns[-3:] + columns[2:-3]
+
+# Reorder the columns
+combined_data = combined_data[new_order]
+print(combined_data)
+
 # -----------------------------------------------------
 # Convert to DataFrame
 df_long = pd.DataFrame(processed_data)
@@ -314,6 +394,9 @@ earliest_records_df = keep_earliest_records(df_single_row)
 
 # Output the result
 print(earliest_records_df)
+
+
+
 # ------------------------------------------
 # Convert to DataFrame
 df = pd.DataFrame(df_single_row)
