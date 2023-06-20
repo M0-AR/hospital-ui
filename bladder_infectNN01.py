@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 
-
 def filter_records_by_codes(data_frame):
     """
     Filter out rows that don't contain any of the specified codes in the 'diagnosis_category' column.
@@ -64,6 +63,46 @@ def read_excel_data_from_folders(file=None):
         if os.path.isfile(filepath):
             df = pd.read_excel(filepath, header=0)
             data[f"{patient_id}_{file}"] = df
+
+    return data
+
+
+import os
+import pandas as pd
+
+
+def read_excel_data_into_dataframe(file=None):
+    """
+    Read Excel files from patient folders into a DataFrame.
+
+    :param file: Name of the Excel file to read.
+    :return: DataFrame containing data from Excel files with additional columns for cpr.
+    """
+    # List to store individual DataFrames
+    data_frames = []
+
+    # Patient directories
+    patient_dirs = [dir_name for dir_name in os.listdir('HospitalData') if
+                    os.path.isdir(os.path.join('HospitalData', dir_name))]
+
+    # Iterate through patient directories
+    for cpr in patient_dirs:
+        patient_directory = os.path.join('HospitalData', cpr)
+
+        # Read specific file
+        filepath = os.path.join(patient_directory, file)
+        if os.path.isfile(filepath):
+            # Read Excel file into DataFrame
+            df = pd.read_excel(filepath, header=0)
+
+            # Add cpr column
+            df.insert(0, 'cpr', cpr)
+
+            # Append the DataFrame to the data_frames list
+            data_frames.append(df)
+
+    # Concatenate all the data_frames into a single DataFrame
+    data = pd.concat(data_frames, ignore_index=True)
 
     return data
 
@@ -516,7 +555,8 @@ new_filtered_blood_test_data.drop(columns=['content', 'content_value'], inplace=
 print(new_filtered_blood_test_data)
 ####
 
-pato_miba_blood_combined_data = pd.merge(pato_miba_combined_data, new_filtered_blood_test_data, on='cpr', how='outer')
+# TODO
+# pato_miba_blood_combined_data = pd.merge(pato_miba_combined_data, new_filtered_blood_test_data, on='cpr', how='outer')
 
 def move_columns(dataframe, insert_index, number_of_columns):
     """
@@ -539,7 +579,8 @@ def move_columns(dataframe, insert_index, number_of_columns):
     return reordered_dataframe
 
 # Example usage:
-pato_miba_blood_combined_data = move_columns(pato_miba_blood_combined_data, 5, 3)
+# pato_miba_blood_combined_data = move_columns(pato_miba_blood_combined_data, 5, 3) # TODO: uncomment blood combine line
+pato_miba_blood_combined_data = move_columns(pato_miba_combined_data, 5, 3)
 print(pato_miba_blood_combined_data) # TODO: DEMO
 
 # ----
@@ -547,6 +588,72 @@ print(pato_miba_blood_combined_data) # TODO: DEMO
 # unique_content_values = blood_test_data['content'].unique()
 # print(unique_content_values)
 # ----
+
+
+# Read Medications data
+medicin_excels = read_excel_data_into_dataframe('medicin.xlsx')
+
+
+def filter_medicin_by_keywords(dataframe):
+    """
+    Filters rows in the DataFrame that contain any of the specified keywords
+    in the 'Medication' column.
+
+    :param dataframe: The input DataFrame.
+    :return: A DataFrame with only the rows containing the specified keywords.
+    """
+    # Make a copy of the input DataFrame to avoid modifying the original
+    df_copy = dataframe.copy()
+
+    # List of keywords to filter
+    keywords = [
+        "Mod infektion",
+        "Mod urinvejsinfektion",
+        "Mod blærebetændelse",
+        "Pivmecillinam",
+        "Amoxicillin",
+        "Trimopan",
+        "Sulfamethizol",
+        "Ciprofloxacin",
+        "Gentamicin",
+        "Piperacillin",
+        "Cefuroxim",
+        "meropenem"
+    ]
+
+    # Create a pattern string by joining keywords with '|' as delimiter
+    pattern = '|'.join(keywords)
+
+    # Filter rows where 'Medication' contains any of the keywords
+    filtered_df = df_copy[df_copy['Medication'].str.contains(pattern, case=False, na=False)]
+
+    return filtered_df
+
+medicin_excels = filter_medicin_by_keywords(medicin_excels)
+medicin_excels = medicin_excels.rename(columns={'Medication': 'medicines', 'Start-Date': 'medicine_start_date', 'End-Date': 'medicine_end_date'})
+
+pato_miba_blood_medicine_combined_data = pd.merge(pato_miba_blood_combined_data, medicin_excels, on='cpr', how='left')
+
+
+# Read Diagnoses data
+diagnose_list_data = read_excel_data_into_dataframe('diagnose_list.xlsx')
+diagnose_list_data = diagnose_list_data.rename(columns={'note': 'diagnose_note', 'date': 'diagnose_date'})
+
+pato_miba_blood_medicine_diagnoses_combined_data = pd.merge(pato_miba_blood_medicine_combined_data, diagnose_list_data, on='cpr', how='left')
+# pato_miba_blood_medicine_diagnoses_combined_data = move_columns(pato_miba_blood_medicine_diagnoses_combined_data, 5, 5)
+
+# Specify the filename
+filename = 'combined_data.xlsx'
+
+# Save the DataFrame to an Excel file
+pato_miba_blood_medicine_diagnoses_combined_data.to_excel(filename, index=False)
+
+# Read diagnoses data
+vitale_data = read_excel_data_into_dataframe('vitale.xlsx')
+
+vitale_data
+
+
 
 # ------------------------------------------------
 # 02
