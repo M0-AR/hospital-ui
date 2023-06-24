@@ -112,13 +112,35 @@ vitale_data = read_excel_data_into_dataframe('vitale.xlsx')
 import re
 
 
+import pandas as pd
+import re
+from collections import defaultdict
+
+
 def transform_vitale_data(original_data):
-    # Empty DataFrame to store the tidy data
-    tidy_data = pd.DataFrame(
-        columns=['cpr', 'vitale_measurement_type', 'vitale_measurement_unit', 'vitale_measurement_value', 'vitale_measurement_date'])
+    # Dictionary to store the tidy data
+    # Keys are tuples of (cpr, date), values are dictionaries of the measurements
+    tidy_data_dict = defaultdict(dict)
 
     # Regular expression pattern to extract date
     date_pattern = re.compile(r'\d{2}-\d{2}-\d{4}')
+
+    # Regular expression pattern to extract date and time
+    date_time_pattern = re.compile(r'\d{2}-\d{2}-\d{4} \d{2}:\d{2}')
+
+    # Mapping from measurement type to column name
+    measurement_to_column = {
+        'Blodtryk': 'vitale_blodtryk',
+        'Puls': 'vitale_puls',
+        'Resp.frekv.': 'vitale_respfrekv',
+        'Temperatur': 'vitale_temperatur',
+        'Temp.kilde': 'vitale_tempkilde',
+        'Saturation': 'vitale_saturation',
+        'Hovedomfang (cm)': 'vitale_hovedomfang',
+        'Vægt': 'vitale_vaegt',
+        'Højde': 'vitale_hoejde',
+        'Body Mass Index': 'vitale_bodymassindex'
+    }
 
     # Loop through each row in the original data
     for index, row in original_data.iterrows():
@@ -128,34 +150,41 @@ def transform_vitale_data(original_data):
         # Extract the measurement type
         measurement_type = str(row['værdier']).replace(':', '').strip()
 
-        # Loop through each column except 'cpr' and 'værdier'
-        for column in original_data.columns[2:]:
-            raw_value = str(row[column]).replace('\xa0', ' ').replace('_x000D_', '').strip()
+        # Check if the measurement type is in the mapping
+        if measurement_type in measurement_to_column:
+            # Loop through each column except 'værdier'
+            for column in original_data.columns[2:]:
+                raw_value = str(row[column]).replace('\xa0', ' ').replace('_x000D_', '').strip()
 
-            # Extract date
-            match = date_pattern.search(raw_value)
-            measurement_date = match.group() if match else column
+                # Extract date from column name
+                match = date_time_pattern.search(column)
+                column_date = match.group() if match else None
 
-            # Remove date from raw value
-            raw_value_no_date = date_pattern.sub('', raw_value)
-
-            # Extract the measurement value and unit
-            measurement_value = ''
-            measurement_unit = ''
-            if measurement_type not in ('nan', '') and raw_value not in ('nan', ''):
-                parts = raw_value_no_date.split(' ')
-                if len(parts) > 1:
-                    measurement_value = ''.join(parts[0])
-                    measurement_unit = parts[1]
+                # If date is extracted from column name, use it, otherwise, extract from raw value
+                measurement_date = column_date
+                if not measurement_date:
+                    match = date_pattern.search(raw_value)
+                    measurement_date = match.group() if match else None
+                    raw_value_no_date = date_pattern.sub('', raw_value) if measurement_date else raw_value
                 else:
-                    measurement_value = parts[0]
+                    raw_value_no_date = raw_value
 
-                # Append to the tidy DataFrame using loc
-                tidy_data.loc[len(tidy_data)] = [cpr, measurement_type, measurement_unit, measurement_value,
-                                                 measurement_date]
+                # Extract the measurement value
+                if raw_value_no_date not in ('nan', ''):
+                    # Add data to the tidy data dict
+                    key = (cpr, measurement_date)
+                    tidy_data_dict[key][measurement_to_column[measurement_type]] = raw_value_no_date
+
+    # Convert the nested dictionaries to a list of dictionaries
+    tidy_data_list = [{'cpr': cpr, 'vitale_measurement_date': date, **measurements}
+                      for (cpr, date), measurements in tidy_data_dict.items()]
+
+    # Convert the list of dictionaries to a DataFrame
+    tidy_data = pd.DataFrame(tidy_data_list)
 
     # Return the tidy data
     return tidy_data
+
 
 
 vitale_data = transform_vitale_data(vitale_data)
