@@ -106,7 +106,60 @@ def read_excel_data_into_dataframe(file=None):
 
     return data
 
+# Read diagnoses data
+vitale_data = read_excel_data_into_dataframe('vitale.xlsx')
 
+import re
+
+
+def transform_vitale_data(original_data):
+    # Empty DataFrame to store the tidy data
+    tidy_data = pd.DataFrame(
+        columns=['cpr', 'vitale_measurement_type', 'vitale_measurement_unit', 'vitale_measurement_value', 'vitale_measurement_date'])
+
+    # Regular expression pattern to extract date
+    date_pattern = re.compile(r'\d{2}-\d{2}-\d{4}')
+
+    # Loop through each row in the original data
+    for index, row in original_data.iterrows():
+        # Extract the cpr
+        cpr = row['cpr']
+
+        # Extract the measurement type
+        measurement_type = str(row['værdier']).replace(':', '').strip()
+
+        # Loop through each column except 'cpr' and 'værdier'
+        for column in original_data.columns[2:]:
+            raw_value = str(row[column]).replace('\xa0', ' ').replace('_x000D_', '').strip()
+
+            # Extract date
+            match = date_pattern.search(raw_value)
+            measurement_date = match.group() if match else column
+
+            # Remove date from raw value
+            raw_value_no_date = date_pattern.sub('', raw_value)
+
+            # Extract the measurement value and unit
+            measurement_value = ''
+            measurement_unit = ''
+            if measurement_type not in ('nan', '') and raw_value not in ('nan', ''):
+                parts = raw_value_no_date.split(' ')
+                if len(parts) > 1:
+                    measurement_value = ''.join(parts[0])
+                    measurement_unit = parts[1]
+                else:
+                    measurement_value = parts[0]
+
+                # Append to the tidy DataFrame using loc
+                tidy_data.loc[len(tidy_data)] = [cpr, measurement_type, measurement_unit, measurement_value,
+                                                 measurement_date]
+
+    # Return the tidy data
+    return tidy_data
+
+
+vitale_data = transform_vitale_data(vitale_data)
+vitale_data
 # Read data
 pato_excels = read_excel_data_from_folders('pato_bank.xlsx')
 
@@ -395,7 +448,7 @@ def filter_dataframes(miba_excels, earliest_records_df):
     filtered_data['Taget d.'] = filtered_data['Taget d.'].dt.strftime('%d.%m.%Y')
 
     # Rename the column
-    filtered_data = filtered_data.rename(columns={'Taget d.': 'mida_date'})
+    filtered_data = filtered_data.rename(columns={'Taget d.': 'miba_date'})
 
     return filtered_data
 
