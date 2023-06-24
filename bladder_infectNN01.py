@@ -106,9 +106,6 @@ def read_excel_data_into_dataframe(file=None):
 
     return data
 
-# Read diagnoses data
-vitale_data = read_excel_data_into_dataframe('vitale.xlsx')
-
 import re
 
 
@@ -165,7 +162,24 @@ def transform_vitale_data(original_data):
                 if not measurement_date:
                     match = date_pattern.search(raw_value)
                     measurement_date = match.group() if match else None
-                    raw_value_no_date = date_pattern.sub('', raw_value) if measurement_date else raw_value
+
+                    # Remove date from raw_value if measurement_date exists
+                    if measurement_date:
+                        raw_value_no_date = date_pattern.sub('', raw_value)
+                    else:
+                        raw_value_no_date = raw_value
+
+                    # Split the string into an array
+                    raw_value_array = raw_value_no_date.split()
+
+                    if 'pr.' in raw_value_array:
+                        raw_value_array.remove('pr.')
+
+                    # Check if raw_value_array[1] is not a date and concatenate
+                    if len(raw_value_array) > 1 and not date_pattern.match(raw_value_array[1]):
+                        raw_value_no_date = raw_value_array[0] + ' ' + raw_value_array[1]
+                    else:
+                        raw_value_no_date = raw_value_array[0] if raw_value_array else ''
                 else:
                     raw_value_no_date = raw_value
 
@@ -186,9 +200,6 @@ def transform_vitale_data(original_data):
     return tidy_data
 
 
-
-vitale_data = transform_vitale_data(vitale_data)
-vitale_data
 # Read data
 pato_excels = read_excel_data_from_folders('pato_bank.xlsx')
 
@@ -555,7 +566,7 @@ def read_blood_test_excel_data():
 
 # Example usage:
 blood_test_data = read_blood_test_excel_data()
-print(blood_test_data)
+# print(blood_test_data)
 
 
 def filter_blood_test_data(blood_test_data, keep_values):
@@ -628,17 +639,37 @@ filtered_blood_test_data['numerical_value'] = filtered_blood_test_data['content_
 # Copy the DataFrame
 new_filtered_blood_test_data = filtered_blood_test_data.copy()
 
+
 # TODO: NOTE: in content Leukocytter would have Negtive value in content_value so it would be in numerical_value None=Negative
 
 # Drop the 'content' column
 new_filtered_blood_test_data.drop(columns=['content', 'content_value'], inplace=True)
 
 # Display the new DataFrame
-print(new_filtered_blood_test_data)
+
+def transform_blood_test_data(blood_test_data):
+    """
+    Transforms the blood_test_data DataFrame from long format to wide format.
+
+    :param blood_test_data: DataFrame with columns 'cpr', 'blood_date', 'content_name', 'numerical_value'
+    :return: Reshaped DataFrame with content names as columns
+    """
+    # Using pivot_table to handle duplicate entries
+    reshaped_data = blood_test_data.pivot_table(index=['cpr', 'blood_date'], columns='content_name',
+                                                values='numerical_value', aggfunc='first')
+
+    # Reset the index for the final DataFrame
+    reshaped_data = reshaped_data.reset_index()
+
+    # Return the reshaped DataFrame
+    return reshaped_data
+
+reshaped_blood_test_data = transform_blood_test_data(new_filtered_blood_test_data)
 ####
 
 # TODO
 # pato_miba_blood_combined_data = pd.merge(pato_miba_combined_data, new_filtered_blood_test_data, on='cpr', how='outer')
+pato_miba_blood_combined_data = pd.merge(pato_miba_combined_data, reshaped_blood_test_data, on='cpr', how='outer')
 
 def move_columns(dataframe, insert_index, number_of_columns):
     """
@@ -661,9 +692,9 @@ def move_columns(dataframe, insert_index, number_of_columns):
     return reordered_dataframe
 
 # Example usage:
-# pato_miba_blood_combined_data = move_columns(pato_miba_blood_combined_data, 5, 3) # TODO: uncomment blood combine line
-pato_miba_blood_combined_data = move_columns(pato_miba_combined_data, 5, 3)
-print(pato_miba_blood_combined_data) # TODO: DEMO
+# pato_miba_blood_combined_data = move_columns(pato_miba_blood_combined_data, 5, 34) # TODO: uncomment blood combine line
+# pato_miba_blood_combined_data = move_columns(pato_miba_combined_data, 5, 3)
+# print(pato_miba_blood_combined_data) # TODO: DEMO
 
 # ----
 # Display unique values in the 'content' column
@@ -722,21 +753,18 @@ diagnose_list_data = read_excel_data_into_dataframe('diagnose_list.xlsx')
 diagnose_list_data = diagnose_list_data.rename(columns={'note': 'diagnose_note', 'date': 'diagnose_date'})
 
 pato_miba_blood_medicine_diagnoses_combined_data = pd.merge(pato_miba_blood_medicine_combined_data, diagnose_list_data, on='cpr', how='left')
-# pato_miba_blood_medicine_diagnoses_combined_data = move_columns(pato_miba_blood_medicine_diagnoses_combined_data, 5, 5)
+
+# Read diagnoses data
+vitale_data = read_excel_data_into_dataframe('vitale.xlsx')
+vitale_data = transform_vitale_data(vitale_data)
+
+pato_miba_blood_medicine_diagnoses_vitale_combined_data = pd.merge(pato_miba_blood_medicine_diagnoses_combined_data, vitale_data, on='cpr', how='left')
 
 # Specify the filename
 filename = 'combined_data.xlsx'
 
 # Save the DataFrame to an Excel file
-pato_miba_blood_medicine_diagnoses_combined_data.to_excel(filename, index=False)
-
-# Read diagnoses data
-vitale_data = read_excel_data_into_dataframe('vitale.xlsx')
-
-vitale_data
-
-
-
+# pato_miba_blood_medicine_diagnoses_vitale_combined_data.to_excel(filename, index=False)
 # ------------------------------------------------
 # 02
 import pandas as pd
