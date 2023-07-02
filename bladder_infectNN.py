@@ -133,6 +133,7 @@ miba_excels = read_excel_data(cpr_list, 'miba.xlsx')  # Key, Value
 from datetime import datetime
 from collections import defaultdict
 
+
 def filter_dataframes(miba_excels, cpr_dates_dict):
     filtered_data = defaultdict(list)  # Use defaultdict to automatically initialize an empty list for each CPR number
 
@@ -161,4 +162,3 @@ for cpr_number, dataframes in filtered_data.items():
     for dataframe in dataframes:
         print(dataframe)
         print()
-
