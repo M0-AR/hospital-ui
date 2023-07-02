@@ -18,16 +18,16 @@ def transform_vitale_data(original_data):
 
     # Mapping from measurement type to column name
     measurement_to_column = {
-        'Blodtryk': 'vital_blood_pressure',
-        'Puls': 'vital_pulse',
-        'Resp.frekv.': 'vital_respiratory_rate',
-        'Temperatur': 'vital_temperature',
-        'Temp.kilde': 'vital_temperature_source',
-        'Saturation': 'vital_saturation',
-        'Hovedomfang (cm)': 'vital_head_circumference',
-        'Vægt': 'vital_weight',
-        'Højde': 'vital_height',
-        'Body Mass Index': 'vital_body_mass_index'
+        'Blodtryk': 'vitale_blodtryk',
+        'Puls': 'vitale_puls',
+        'Resp.frekv.': 'vitale_respfrekv',
+        'Temperatur': 'vitale_temperatur',
+        'Temp.kilde': 'vitale_tempkilde',
+        'Saturation': 'vitale_saturation',
+        'Hovedomfang (cm)': 'vitale_hovedomfang',
+        'Vægt': 'vitale_vaegt',
+        'Højde': 'vitale_hoejde',
+        'Body Mass Index': 'vitale_bodymassindex'
     }
 
     # Loop through each row in the original data
