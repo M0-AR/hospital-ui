@@ -72,8 +72,11 @@ def filter_row(row):
     return row
 
 
+# Copy the 'cpr_pato_df_list' to 'cpr_pato_df_list_contain_codes'
+cpr_pato_df_list_contain_codes = cpr_pato_df_list.copy()
+
 # Apply the function to each row
-cpr_pato_df_list_contain_codes = cpr_pato_df_list.apply(filter_row, axis=1)
+cpr_pato_df_list_contain_codes = cpr_pato_df_list_contain_codes.apply(filter_row, axis=1)
 # ----------------------------------------------------
 
 # ------ Retrieve the earliest date from the data ------
