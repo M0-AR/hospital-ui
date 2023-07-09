@@ -228,4 +228,6 @@ miba_medicin_diagnoses_pato_vitale_combined_data = pd.merge(miba_medicin_diagnos
 
 miba_medicin_diagnoses_pato_vitale_blood_combined_data = pd.merge(miba_medicin_diagnoses_pato_vitale_combined_data, blood_test_egg, on='cpr', how='outer')
 
-miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_excel('combine_all_data.xlsx', index=False)
+miba_medicin_diagnoses_pato_vitale_blood_combined_data.insert(0, 'record_id', range(1, 1 + len(miba_medicin_diagnoses_pato_vitale_blood_combined_data)))
+
+miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_csv('combine_all_data.csv', index=False)
