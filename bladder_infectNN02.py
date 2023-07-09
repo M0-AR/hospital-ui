@@ -105,5 +105,12 @@ def keep_oldest_record_in_pato(row):
     return row
 
 
+# Create a copy of 'cpr_pato_df_list_contain_codes' dataframe to preserve the original data
+cpr_pato_df_list_contain_codes_with_oldest_date = cpr_pato_df_list_contain_codes.copy()
+
 # Apply the 'keep_oldest_record_in_pato' function to each row
-cpr_pato_df_list_contain_codes_with_oldest_date = cpr_pato_df_list.apply(keep_oldest_record_in_pato, axis=1)
+cpr_pato_df_list_contain_codes_with_oldest_date = cpr_pato_df_list_contain_codes_with_oldest_date.apply(keep_oldest_record_in_pato, axis=1)
+# ------------------------------------
+
+# Collect the following codes in multiple columns
+
