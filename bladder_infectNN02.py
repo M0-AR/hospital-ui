@@ -112,7 +112,7 @@ cpr_pato_TCodes_oldestDate = cpr_pato_df_list_contain_TCodes.copy()
 cpr_pato_TCodes_oldestDate = cpr_pato_TCodes_oldestDate.apply(keep_oldest_record_in_pato, axis=1)
 # ------------------------------------
 
-# -------------- Collect the following diagnose codes in multiple colomns -----------
+# -------------- Collect the following diagnose codes in multiple columns with sampling the rest of the text
 
 def collect_diagnose_codes_in_columns(data):
     """
@@ -170,19 +170,37 @@ def collect_diagnose_codes_in_columns(data):
         if pd.isnull(diagnoser):
             continue
 
-        # Extract the column names and data from the diagnoses list
-        for diagnose in diagnoser:
-            column_name = diagnose.split('\n')[1].strip()
-            column_data = '\n'.join(diagnose.split('\n')[2:]).strip()
-            code = column_name.split()[0]  # Extract the code part
+        # Iterate over each section in the diagnoser list
+        for section in diagnoser:
+            lines = section.split('[')
 
-            # Adjust the condition to check for the code in the columns
-            for column in diagnose_codes:
-                if column.startswith(code):
-                    new_data.at[idx, column] = column_data
-                    break
+            # Iterate over each pair of lines (code and value) in the section
+            for i in range(1, len(lines), 2):
+                code_line = lines[i].strip()
+
+                if not code_line:
+                    continue
+
+                column_name1 = code_line.split('\n')[1].strip()
+                code1 = column_name1.split()[0]  # Extract the code part
+
+                column_name2 = code_line.split('\n')[2].strip()
+                code2 = column_name2.split()[0]  # Extract the code part
+
+                code_line_data = '\n'.join(code_line.split('\n')[3:]).strip()
+
+                # Adjust the condition to check for the code in the columns
+                for column in diagnose_codes:
+                    if column.startswith(code1):
+                        new_data.at[idx, column] += '\n' + f'[{i}] ' + code_line_data
+                    if column.startswith(code2):
+                        new_data.at[idx, column] += '\n' + f'[{i}] ' + code_line_data
 
     return new_data
 
 # Call the function with the sample data
 cpr_pato_TCodes_oldestDate_diagnoseCodes = collect_diagnose_codes_in_columns(cpr_pato_TCodes_oldestDate)
+# TODO one cell has two diagnoseCodes where to 'sample the rest of the text'
+# TODO docs: if the cell contain '\n[1] \n[3] \n[5]' that mean we found diagnose's code but there is no rest of the text to sample
+print()
+# ----------------------------------------
