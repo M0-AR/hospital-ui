@@ -73,10 +73,10 @@ def filter_row(row):
 
 
 # Copy the 'cpr_pato_df_list' to 'cpr_pato_df_list_contain_codes'
-cpr_pato_df_list_contain_codes = cpr_pato_df_list.copy()
+cpr_pato_df_list_contain_TCodes = cpr_pato_df_list.copy()
 
 # Apply the function to each row
-cpr_pato_df_list_contain_codes = cpr_pato_df_list_contain_codes.apply(filter_row, axis=1)
+cpr_pato_df_list_contain_TCodes = cpr_pato_df_list_contain_TCodes.apply(filter_row, axis=1)
 # ----------------------------------------------------
 
 # ------ Retrieve the earliest date from the data ------
@@ -106,11 +106,83 @@ def keep_oldest_record_in_pato(row):
 
 
 # Create a copy of 'cpr_pato_df_list_contain_codes' dataframe to preserve the original data
-cpr_pato_df_list_contain_codes_with_oldest_date = cpr_pato_df_list_contain_codes.copy()
+cpr_pato_TCodes_oldestDate = cpr_pato_df_list_contain_TCodes.copy()
 
 # Apply the 'keep_oldest_record_in_pato' function to each row
-cpr_pato_df_list_contain_codes_with_oldest_date = cpr_pato_df_list_contain_codes_with_oldest_date.apply(keep_oldest_record_in_pato, axis=1)
+cpr_pato_TCodes_oldestDate = cpr_pato_TCodes_oldestDate.apply(keep_oldest_record_in_pato, axis=1)
 # ------------------------------------
 
-# Collect the following codes in multiple columns
+# -------------- Collect the following diagnose codes in multiple colomns -----------
 
+def collect_diagnose_codes_in_columns(data):
+    """
+    Process the patients' data and collect specified diagnose codes into multiple columns.
+
+    :param data: DataFrame containing patients' data with 'cpr' and 'patos' columns.
+    :return: DataFrame with collected diagnose codes in multiple columns.
+    """
+    # List of columns
+    diagnose_codes = [
+        "ÆYY111 lav malignitetsgrad",
+        "ÆYY113 høj malignitetsgrad",
+        "P30611 ekscisionsbiopsi",
+        "P30615 endoskopisk biopsi",
+        "P30619 randombiopsi",
+        "P30625 spånresektat",
+        "P306x0 ektomipræparat",
+        "P306x4 tumorektomi",
+        "ÆYYY0R nested inkl. large nested type",
+        "ÆYYY0S mikrocystisk type",
+        "ÆYYY0U plasmacytoid/signetringscelle/diffus type",
+        "ÆYYY0X lipidrig type",
+        "M80133 storcellet neuroendokrint karcinom",
+        "M80203 udifferentieret karcinom",
+        "M80403 småcellet karcinom",
+        "M80702 planocellulært karcinom in situ",
+        "M80703 planocellulært karcinom",
+        "M80823 lymfoepitelialt karcinom",
+        "M81200 urotelialt papillom",
+        "M81202 urotelialt karcinom in situ",
+        "M81203 urotelialt",
+        "M81300 inverteret urotelialt papillom",
+        "M81233 sarkomatoidt urotelialt karcinom",
+        "M81313 mikropapillært urotelialt karcinom",
+        "M81301 papillær urotelial tumor med minimalt malignitetspotentiale",
+        "M81302 ikkeinvasiv papillær urotelial tumor",
+        "M81403 adenokarcinom",
+        "M81402 adenokarcinom in situ",
+        "M81303 urotelial tumor",
+        "M80703 planocellulært karcinom",
+        "M81403 adenokarcinom",
+        "M69760 malignitetssuspekte celler"
+    ]
+
+    # Copy the original DataFrame and add new columns initialized with an empty string
+    new_data = data.copy()
+    for column in diagnose_codes:
+        new_data[column] = ''
+
+    # Iterating through each row of the DataFrame
+    for idx, row in new_data.iterrows():
+        diagnoser = row['pato_diagnoses']
+
+        # Skip the row if the 'pato_diagnoses' value is NaN
+        if pd.isnull(diagnoser):
+            continue
+
+        # Extract the column names and data from the diagnoses list
+        for diagnose in diagnoser:
+            column_name = diagnose.split('\n')[1].strip()
+            column_data = '\n'.join(diagnose.split('\n')[2:]).strip()
+            code = column_name.split()[0]  # Extract the code part
+
+            # Adjust the condition to check for the code in the columns
+            for column in diagnose_codes:
+                if column.startswith(code):
+                    new_data.at[idx, column] = column_data
+                    break
+
+    return new_data
+
+# Call the function with the sample data
+cpr_pato_TCodes_oldestDate_diagnoseCodes = collect_diagnose_codes_in_columns(cpr_pato_TCodes_oldestDate)
