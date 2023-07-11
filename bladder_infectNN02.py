@@ -314,3 +314,69 @@ cpr_miba_filterByKeywords_NoneToNegative = replace_none_in_list(cpr_miba_filterB
 
 # ----------------------------------------
 
+# Filter the miba DataFrame based on the miba_collection_date column so that only records that occurred before the pato_received_date in the pato DataFrame are kept.
+
+def convert_dates(date_list):
+    # Check if date_list is not iterable (float, None etc.)
+    if not isinstance(date_list, list):
+        return []
+
+    # Converts a list of strings to datetime, ignoring non-dates and None values
+    return [pd.to_datetime(date) for date in date_list if pd.to_datetime(date, errors='coerce') is not pd.NaT]
+
+# Apply the function to each row of 'miba_collection_date' and 'pato_received_date'
+cpr_miba_filterByKeywords_NoneToNegative['miba_collection_date'] = cpr_miba_filterByKeywords_NoneToNegative['miba_collection_date'].apply(convert_dates)
+cpr_pato_TCodes_oldestDate_diagnoseCodes_df['pato_received_date'] = cpr_pato_TCodes_oldestDate_diagnoseCodes_df['pato_received_date'].apply(convert_dates)
+
+
+def filter_by_date(df1, df2, cols_to_filter):
+    """
+    Filters df1 to only include elements where the date in 'miba_collection_date' is earlier than the date in 'pato_received_date' in df2 for a matching 'cpr'.
+
+    Parameters:
+    df1 (pd.DataFrame): The first DataFrame. Expected to contain 'cpr' and 'miba_collection_date' columns.
+    df2 (pd.DataFrame): The second DataFrame. Expected to contain 'cpr' and 'pato_received_date' columns.
+
+    Returns:
+    df1_filtered (pd.DataFrame): A filtered version of df1.
+    """
+    # Make a copy of df1 to prevent modifications on the original
+    df1_filtered = df1.copy()
+
+    # Iterate over the rows of df1
+    for index, row in df1.iterrows():
+        cpr = row['cpr']
+
+        # Find the corresponding row in df2
+        df2_row = df2[df2['cpr'] == cpr]
+
+        # If there is no corresponding row in df2, drop the row from df1
+        if df2_row.empty:
+            df1_filtered = df1_filtered.drop(index)
+            continue
+
+        # Get the dates from df1 and df2
+        miba_dates = row['miba_collection_date']
+        # Get the first (and only) date from 'pato_received_date' or None if the list is empty
+        pato_date = df2_row.iloc[0]['pato_received_date'][0] if df2_row.iloc[0]['pato_received_date'] else None
+
+        # Iterate over each date in miba_dates and its index in reverse order
+        for i in reversed(range(len(miba_dates))):
+            # If pato_date is None or if the date in miba_dates is not earlier than pato_date, remove the
+            # corresponding elements from all columns in cols_to_update
+            if pato_date is None or miba_dates[i] >= pato_date:
+                for col in cols_to_filter:
+                    # Check if the column exists in the DataFrame
+                    if col in df1_filtered.columns:
+                        del df1_filtered.at[index, col][i]
+
+    return df1_filtered
+
+
+# Use the function to filter cpr_miba_filterByKeywords_NoneToNegative
+filtered_miba_by_date_before_pato = filter_by_date(cpr_miba_filterByKeywords_NoneToNegative, cpr_pato_TCodes_oldestDate_diagnoseCodes_df, miba_cols)
+
+# Merge the filtered DataFrame with cpr_pato_TCodes_oldestDate_diagnoseCodes_df
+cpr_pato_miba = pd.merge(filtered_miba_by_date_before_pato, cpr_pato_TCodes_oldestDate_diagnoseCodes_df, on='cpr')
+
+print()
