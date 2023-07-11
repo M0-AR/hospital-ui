@@ -58,7 +58,7 @@ pato_cols = ['pato_received_date', 'pato_service_provider', 'pato_request_number
 
 
 # Define a function to filter all lists in a row based on 'pato_diagnoses' list
-def filter_row(row):
+def filter_row_based_on_pato_diagnoses(row):
     # Get the 'pato_diagnoses' list
     diagnoses = row['pato_diagnoses']
     # Check if 'diagnoses' is a list
@@ -76,13 +76,12 @@ def filter_row(row):
 cpr_pato_df_list_contain_TCodes = cpr_pato_df_list.copy()
 
 # Apply the function to each row
-cpr_pato_df_list_contain_TCodes = cpr_pato_df_list_contain_TCodes.apply(filter_row, axis=1)
+cpr_pato_df_list_contain_TCodes = cpr_pato_df_list_contain_TCodes.apply(filter_row_based_on_pato_diagnoses, axis=1)
 # ----------------------------------------------------
 
 # ------ Retrieve the earliest date from the data ------
 
 from datetime import datetime
-
 
 def keep_oldest_record_in_pato(row):
     dates = row['pato_received_date']
@@ -199,8 +198,119 @@ def collect_diagnose_codes_in_columns(data):
     return new_data
 
 # Call the function with the sample data
-cpr_pato_TCodes_oldestDate_diagnoseCodes = collect_diagnose_codes_in_columns(cpr_pato_TCodes_oldestDate)
+cpr_pato_TCodes_oldestDate_diagnoseCodes_df = collect_diagnose_codes_in_columns(cpr_pato_TCodes_oldestDate)
 # TODO one cell has two diagnoseCodes where to 'sample the rest of the text'
 # TODO docs: if the cell contain '\n[1] \n[3] \n[5]' that mean we found diagnose's code but there is no rest of the text to sample
-print()
 # ----------------------------------------
+# miba: Data prior to index date (see pato_bank explanation).
+
+# Select columns that start with "miba" or "cpr"
+cpr_miba_columns = [col for col in df.columns if col.startswith(('cpr', 'miba'))]
+
+# Create a new dataframe with only the selected columns
+cpr_miba_df = df[cpr_miba_columns]
+
+# Usage
+cpr_miba_df_list = convert_string_to_list(cpr_miba_df)
+
+# Remove unwanted columns
+cpr_miba_df_list = cpr_miba_df_list[['cpr', 'miba_sample_type', 'miba_collection_date', 'miba_quantity']]
+# ----------------------------------------
+
+# Column A (“Prøvens art”) – only data concerning:
+# ⦁	Blod … (Blod, Blod (bloddyrkningskolbe, etc)
+# ⦁	Urin … (Urin, Urin – midtstråle, etc)
+
+
+def filter_df_based_on_codes(df, codes_to_keep, cols_to_filter, filter_by_col_list):
+    """
+    Function to filter DataFrame rows based on specific codes.
+
+    This function filters the DataFrame 'df' such that for each row, if a list
+    item in the column 'list_col' does not contain any of the 'codes_to_keep',
+    it removes that list item and corresponding list items from the other columns
+    specified in 'cols_to_filter'.
+
+    Parameters:
+    df (pd.DataFrame): The DataFrame to filter.
+    codes_to_keep (list): The list of codes to check for in each list item of 'list_col'.
+    cols_to_filter (list): The list of column names whose corresponding list items should be removed.
+    filter_by_col_list (str): The column name that contains the lists to be checked against 'codes_to_keep'.
+
+    Returns:
+    df_copy (pd.DataFrame): A copy of the original DataFrame after filtering.
+    """
+    # Make a copy of the DataFrame to prevent modifications on the original
+    df_copy = df.copy()
+
+    # Iterate over DataFrame rows
+    for index, row in df_copy.iterrows():
+        # Get the list from the specified column
+        list_data = row[filter_by_col_list]
+
+        # If the data is a list, proceed with filtering
+        if isinstance(list_data, list):
+            # Iterate over each item and its index in the list
+            for i in reversed(range(len(list_data))):
+                # If the list item doesn't contain any code in 'codes_to_keep'
+                # remove it and corresponding items from all columns in 'cols_to_filter'
+                if not any(code in list_data[i] for code in codes_to_keep):
+                    for col in cols_to_filter:
+                        # Check if the column exists in the DataFrame
+                        if col in df_copy.columns:
+                            del df_copy.at[index, col][i]
+
+    # Return the filtered DataFrame
+    return df_copy
+
+
+miba_sample_type_keywords_to_keep = ['Blod', 'Urin']
+
+# Get only the relevant columns
+miba_cols = ['miba_sample_type', 'miba_collection_date', 'miba_quantity',
+              'miba_analysis', 'miba_resistance', 'miba_microscopy']
+
+
+cpr_miba_filterByKeywords = filter_df_based_on_codes(cpr_miba_df_list, miba_sample_type_keywords_to_keep, miba_cols, 'miba_sample_type')
+
+# ---------------------------------
+
+# If “Kvantitet” is empty = Negative
+
+def replace_none_in_list(df, keyword):
+    """
+    Function to replace 'None' values in lists within all DataFrame columns.
+
+    This function goes through each row of the DataFrame 'df' and each column,
+    checks the list in the column and replaces 'None' values with the provided 'keyword'.
+
+    Parameters:
+    df (pd.DataFrame): The DataFrame to manipulate.
+    keyword (str): The string to replace 'None' values with.
+
+    Returns:
+    df_copy (pd.DataFrame): A copy of the original DataFrame after replacement.
+    """
+    # Make a copy of the DataFrame to prevent modifications on the original
+    df_copy = df.copy()
+
+    # Iterate over DataFrame rows
+    for index, row in df_copy.iterrows():
+        # Iterate over each column
+        for column_name in df_copy.columns:
+            # Get the list from the current column
+            list_data = row[column_name]
+
+            # If the data is a list, proceed with replacement
+            if isinstance(list_data, list):
+                # Replace 'None' with 'keyword' in the list
+                df_copy.at[index, column_name] = [item if item is not None else keyword for item in list_data]
+
+    # Return the DataFrame with replaced values
+    return df_copy
+
+cpr_miba_filterByKeywords_NoneToNegative = replace_none_in_list(cpr_miba_filterByKeywords, 'Negative')
+
+
+# ----------------------------------------
+
