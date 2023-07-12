@@ -438,4 +438,56 @@ def filter_lists(df, cols, keywords):
 
 
 cpr_blood_filter = filter_lists(cpr_blood_df_list, blood_cols, keywords)
-print()
+
+cpr_blood_filter['blood_date'] = cpr_blood_filter['blood_date'].apply(convert_dates)
+
+
+
+def filter_by_date(df1, df2, cols_to_filter):
+    """
+    Filters df1 to only include elements where the date in 'miba_collection_date' is earlier than the date in 'pato_received_date' in df2 for a matching 'cpr'.
+
+    Parameters:
+    df1 (pd.DataFrame): The first DataFrame. Expected to contain 'cpr' and 'miba_collection_date' columns.
+    df2 (pd.DataFrame): The second DataFrame. Expected to contain 'cpr' and 'pato_received_date' columns.
+
+    Returns:
+    df1_filtered (pd.DataFrame): A filtered version of df1.
+    """
+    # Make a copy of df1 to prevent modifications on the original
+    df1_filtered = df1.copy()
+
+    # Iterate over the rows of df1
+    for index, row in df1.iterrows():
+        cpr = row['cpr']
+
+        # Find the corresponding row in df2
+        df2_row = df2[df2['cpr'] == cpr]
+
+        # If there is no corresponding row in df2, drop the row from df1
+        if df2_row.empty:
+            df1_filtered = df1_filtered.drop(index)
+            continue
+
+        # Get the dates from df1 and df2
+        blood_dates = row['blood_date']
+        # Get the first (and only) date from 'pato_received_date' or None if the list is empty
+        pato_date = df2_row.iloc[0]['pato_received_date'][0] if df2_row.iloc[0]['pato_received_date'] else None
+
+        # Iterate over each date in blood_dates and its index in reverse order
+        for i in reversed(range(len(blood_dates))):
+            # If pato_date is None or if the date in blood_dates is not earlier than pato_date, remove the
+            # corresponding elements from all columns in cols_to_update
+            if pato_date is None or blood_dates[i] >= pato_date:
+                for col in cols_to_filter:
+                    # Check if the column exists in the DataFrame
+                    if col in df1_filtered.columns:
+                        del df1_filtered.at[index, col][i]
+
+    return df1_filtered
+
+# TODO: this invocation is slow
+cpr_blood_filter_by_codes_and_dates = filter_by_date(cpr_blood_filter, cpr_pato_miba, blood_cols)
+
+# Merge two dataframe
+cpr_pato_miba_blood = pd.merge(cpr_blood_filter_by_codes_and_dates, cpr_pato_miba, on='cpr')
