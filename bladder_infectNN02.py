@@ -480,3 +480,38 @@ cpr_pato_miba_blood_medicine = pd.merge(cpr_medicine_filter_by_kewords, cpr_pato
 # ----------------------------------------
 # ----------------------------------------
 # ----------------------------------------
+
+# Select columns that start with "diagnose" or "cpr"
+cpr_diagnose_columns = [col for col in df.columns if col.startswith(('cpr', 'diagnose'))]
+
+# Create a new dataframe with only the selected columns
+cpr_diagnose_df = df[cpr_diagnose_columns]
+
+diagnose_cols = [col for col in df.columns if col.startswith(('diagnose'))]
+
+# Usage
+cpr_diagnose_df_list = convert_string_to_list(cpr_diagnose_df)
+
+# Merge two dataframe
+cpr_pato_miba_blood_medicine_diagnose = pd.merge(cpr_diagnose_df_list, cpr_pato_miba_blood_medicine, on='cpr')
+
+# ----------------------------------------
+# ----------------------------------------
+# ----------------------------------------
+
+# Select columns that start with "vitale" or "cpr"
+cpr_vitale_columns = [col for col in df.columns if col.startswith(('cpr', 'vitale'))]
+
+# Create a new dataframe with only the selected columns
+cpr_vitale_df = df[cpr_vitale_columns]
+
+vitale_cols = [col for col in df.columns if col.startswith(('vitale'))]
+
+# Usage
+cpr_vitale_df_list = convert_string_to_list(cpr_vitale_df)
+
+# TODO: The closest test prior to the index date -> 'closest'?
+# Merge two dataframe
+cpr_pato_miba_blood_medicine_diagnose_vitale = pd.merge(cpr_vitale_df_list, cpr_pato_miba_blood_medicine_diagnose, on='cpr')
+
+print()
