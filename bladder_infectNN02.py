@@ -514,4 +514,4 @@ cpr_vitale_df_list = convert_string_to_list(cpr_vitale_df)
 # Merge two dataframe
 cpr_pato_miba_blood_medicine_diagnose_vitale = pd.merge(cpr_vitale_df_list, cpr_pato_miba_blood_medicine_diagnose, on='cpr')
 
-print()
+cpr_pato_miba_blood_medicine_diagnose_vitale.to_excel('bladder_infect_data.xlsx', index=False)
