@@ -52,10 +52,7 @@ codes_to_keep = ['T74940', 'T74000', 'T74950', 'T74010', 'T74030', 'T7432A', 'T7
                  'T75010', 'T75110']
 
 # Get only the relevant columns
-pato_cols = ['pato_received_date', 'pato_service_provider', 'pato_request_number', 'pato_category', 'pato_diagnoses',
-             'pato_material_description_of_smple', 'pato_conclusion', 'pato_microscopy', 'pato_other_investigations',
-             'pato_macroscopy', 'pato_clinical_information']
-
+pato_cols = cpr_pato_columns = [col for col in df.columns if col.startswith(('pato'))]
 
 # Define a function to filter all lists in a row based on 'pato_diagnoses' list
 def filter_row_based_on_pato_diagnoses(row):
@@ -188,6 +185,7 @@ def collect_diagnose_codes_in_columns(data):
 
                 code_line_data = '\n'.join(code_line.split('\n')[3:]).strip()
 
+                # TODO: ADD value as a list not string
                 # Adjust the condition to check for the code in the columns
                 for column in diagnose_codes:
                     if column.startswith(code1):
@@ -202,6 +200,8 @@ cpr_pato_TCodes_oldestDate_diagnoseCodes_df = collect_diagnose_codes_in_columns(
 # TODO one cell has two diagnoseCodes where to 'sample the rest of the text'
 # TODO docs: if the cell contain '\n[1] \n[3] \n[5]' that mean we found diagnose's code but there is no rest of the text to sample
 # ----------------------------------------
+# ----------------------------------------
+# ----------------------------------------
 # miba: Data prior to index date (see pato_bank explanation).
 
 # Select columns that start with "miba" or "cpr"
@@ -215,6 +215,9 @@ cpr_miba_df_list = convert_string_to_list(cpr_miba_df)
 
 # Remove unwanted columns
 cpr_miba_df_list = cpr_miba_df_list[['cpr', 'miba_sample_type', 'miba_collection_date', 'miba_quantity']]
+
+# Get only the relevant miba columns
+miba_cols = [col for col in df.columns if col.startswith(('miba'))]
 # ----------------------------------------
 
 # Column A (“Prøvens art”) – only data concerning:
@@ -266,9 +269,6 @@ def filter_df_based_on_codes(df, codes_to_keep, cols_to_filter, filter_by_col_li
 
 miba_sample_type_keywords_to_keep = ['Blod', 'Urin']
 
-# Get only the relevant columns
-miba_cols = ['miba_sample_type', 'miba_collection_date', 'miba_quantity',
-              'miba_analysis', 'miba_resistance', 'miba_microscopy']
 
 
 cpr_miba_filterByKeywords = filter_df_based_on_codes(cpr_miba_df_list, miba_sample_type_keywords_to_keep, miba_cols, 'miba_sample_type')
@@ -379,4 +379,63 @@ filtered_miba_by_date_before_pato = filter_by_date(cpr_miba_filterByKeywords_Non
 # Merge the filtered DataFrame with cpr_pato_TCodes_oldestDate_diagnoseCodes_df
 cpr_pato_miba = pd.merge(filtered_miba_by_date_before_pato, cpr_pato_TCodes_oldestDate_diagnoseCodes_df, on='cpr')
 
+# ---------------------------------------
+# ---------------------------------------
+# ---------------------------------------
+
+# Select columns that start with "blood" or "cpr"
+cpr_blood_columns = [col for col in df.columns if col.startswith(('cpr', 'blood'))]
+
+# Create a new dataframe with only the selected columns
+cpr_blood_df = df[cpr_blood_columns]
+
+blood_cols = [col for col in df.columns if col.startswith(('blood'))]
+# Usage
+cpr_blood_df_list = convert_string_to_list(cpr_blood_df)
+# ---------------------------------------
+
+# Only data concerning
+keywords = ['Hæmoglobin', 'Leukocytter', 'Neutrophilocytter', 'CRP', 'kreatinin', 'natrium', 'kalium', 'trombocytter', 'LDH']
+
+def filter_lists(df, cols, keywords):
+    """
+    This function takes a DataFrame, column names, and a list of keywords. It filters out entries in the specified
+    columns of the DataFrame that do not contain any of the keywords.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing the columns.
+    cols (List[str]): List of column names to filter.
+    keywords (List[str]): List of keywords to filter the contents.
+
+    Returns:
+    pd.DataFrame: The DataFrame with filtered content.
+    """
+
+    # Iterate over each row in DataFrame
+    for idx, row in df.iterrows():
+
+        # Initialize a dictionary to store new lists for each column
+        new_lists = {col: [] for col in cols}
+
+        # Find the minimum length of lists in the current row, to avoid out-of-range errors
+        min_len = min(len(row[col]) for col in cols)
+
+        # Iterate over elements in the lists in the current row
+        for i in range(min_len):
+
+            # Check if any keyword is in the content of all columns for current index
+            if any(keyword in row[col][i] for keyword in keywords for col in cols):
+
+                # If yes, append the element at current index to the new list for each column
+                for col in cols:
+                    new_lists[col].append(row[col][i])
+
+        # Replace the old lists with new filtered lists in the DataFrame
+        for col in cols:
+            df.at[idx, col] = new_lists[col]
+
+    return df
+
+
+cpr_blood_filter = filter_lists(cpr_blood_df_list, blood_cols, keywords)
 print()
