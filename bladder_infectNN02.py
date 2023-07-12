@@ -382,14 +382,14 @@ cpr_pato_miba = pd.merge(filtered_miba_by_date_before_pato, cpr_pato_TCodes_olde
 # ---------------------------------------
 
 # Select columns that start with "blood" or "cpr"
-cpr_blood_columns = [col for col in df.columns if col.startswith(('cpr', 'blood'))]
+cpr_medicine_columns = [col for col in df.columns if col.startswith(('cpr', 'blood'))]
 
 # Create a new dataframe with only the selected columns
-cpr_blood_df = df[cpr_blood_columns]
+cpr_medicine_df = df[cpr_medicine_columns]
 
 blood_cols = [col for col in df.columns if col.startswith(('blood'))]
 # Usage
-cpr_blood_df_list = convert_string_to_list(cpr_blood_df)
+cpr_blood_df_list = convert_string_to_list(cpr_medicine_df)
 # ---------------------------------------
 
 # Only data concerning
@@ -415,6 +415,10 @@ def filter_lists(df, cols, keywords):
         # Initialize a dictionary to store new lists for each column
         new_lists = {col: [] for col in cols}
 
+        # Check if all items in cols are lists, if not, continue to next iteration
+        if not all(isinstance(row[col], list) for col in cols):
+            continue
+
         # Find the minimum length of lists in the current row, to avoid out-of-range errors
         min_len = min(len(row[col]) for col in cols)
 
@@ -439,11 +443,6 @@ cpr_blood_filter = filter_lists(cpr_blood_df_list, blood_cols, keywords)
 
 cpr_blood_filter['blood_date'] = cpr_blood_filter['blood_date'].apply(convert_dates)
 
-
-
-
-
-
 # TODO: this invocation is slow
 cpr_blood_filter_by_codes_and_dates = filter_by_date(cpr_blood_filter, cpr_pato_miba, 'cpr', 'blood_date',  'pato_received_date', blood_cols)
 
@@ -454,3 +453,30 @@ cpr_pato_miba_blood = pd.merge(cpr_blood_filter_by_codes_and_dates, cpr_pato_mib
 # ----------------------------------------
 # ----------------------------------------
 
+# Select columns that start with "medicine" or "cpr"
+cpr_medicine_columns = [col for col in df.columns if col.startswith(('cpr', 'medicine'))]
+
+# Create a new dataframe with only the selected columns
+cpr_medicine_df = df[cpr_medicine_columns]
+
+medicine_cols = [col for col in df.columns if col.startswith(('medicine'))]
+# Usage
+cpr_medicine_df_list = convert_string_to_list(cpr_medicine_df)
+# ---------------------------------------
+
+medicine_keywords = [
+    "Mod infektion", "Mod urinvejsinfektion",
+    "Mod blærebetændelse", "Pivmecillinam",
+    "Amoxicillin", "Trimopan", "Sulfamethizol",
+    "Ciprofloxacin", "Gentamicin", "Piperacillin",
+    "Cefuroxim", "Meropenem"
+]
+
+cpr_medicine_filter_by_kewords = filter_lists(cpr_medicine_df_list, medicine_cols, medicine_keywords)
+
+# Merge two dataframe
+cpr_pato_miba_blood_medicine = pd.merge(cpr_medicine_filter_by_kewords, cpr_pato_miba_blood, on='cpr')
+
+# ----------------------------------------
+# ----------------------------------------
+# ----------------------------------------
