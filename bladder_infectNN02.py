@@ -48,11 +48,16 @@ cpr_pato_df_list = convert_string_to_list(cpr_pato_df)
 # ------------- If one of these codes in the data exist then keep it --------------
 
 # Define the codes you want to keep
-codes_to_keep = ['T74940', 'T74000', 'T74950', 'T74010', 'T74030', 'T7432A', 'T7432B', 'T75000', 'T75050', 'T75060',
-                 'T75010', 'T75110']
+codes_to_keep_01 = ['T74940', 'T74000', 'T74950', 'T74010', 'T74030', 'T7432A', 'T7432B', 'T75000', 'T75050', 'T75060', 'T75010', 'T75110']
+
+codes_to_keep_02 = [
+    "ÆYY111", "ÆYY113", "P30611", "P30615", "P30619", "P30625", "P306x0", "P306x4", "ÆYYY0R", "ÆYYY0S", "ÆYYY0U",
+    "ÆYYY0X", "M80133", "M80203", "M80403", "M80702", "M80703", "M80823", "M81200", "M81202", "M81203", "M81300",
+    "M81233", "M81313", "M81301", "M81302", "M81403", "M81402", "M81303", "M80703", "M81403", "M69760"
+]
 
 # Get only the relevant columns
-pato_cols = cpr_pato_columns = [col for col in df.columns if col.startswith(('pato'))]
+pato_cols = [col for col in df.columns if col.startswith('pato')]
 
 # Define a function to filter all lists in a row based on 'pato_diagnoses' list
 def filter_row_based_on_pato_diagnoses(row):
@@ -62,19 +67,19 @@ def filter_row_based_on_pato_diagnoses(row):
     if isinstance(diagnoses, list):
         # Iterate over each item and its index in the 'pato_diagnoses' list
         for i in reversed(range(len(diagnoses))):
-            # If the item doesn't contain any code in 'codes_to_keep', remove it and the corresponding item in all lists
-            if not any(code in diagnoses[i] for code in codes_to_keep):
+            # If the item doesn't contain any code in 'codes_to_keep_01' or 'codes_to_keep_02', remove it and the
+            # corresponding item in all lists
+            if not any(code in diagnoses[i] for code in codes_to_keep_01) \
+                    and not any(code in diagnoses[i] for code in codes_to_keep_02):
                 for col in pato_cols:
                     del row[col][i]
     return row
 
-
-# Copy the 'cpr_pato_df_list' to 'cpr_pato_df_list_contain_codes'
+# Copy the 'cpr_pato_df_list' to 'cpr_pato_df_list_contain_TCodes'
 cpr_pato_df_list_contain_TCodes = cpr_pato_df_list.copy()
 
 # Apply the function to each row
-cpr_pato_df_list_contain_TCodes = cpr_pato_df_list_contain_TCodes.apply(filter_row_based_on_pato_diagnoses, axis=1)
-# ----------------------------------------------------
+cpr_pato_df_list_contain_TCodes = cpr_pato_df_list_contain_TCodes.apply(filter_row_based_on_pato_diagnoses, axis=1)# ----------------------------------------------------
 
 # ------ Retrieve the earliest date from the data ------
 
@@ -515,3 +520,161 @@ cpr_vitale_df_list = convert_string_to_list(cpr_vitale_df)
 cpr_pato_miba_blood_medicine_diagnose_vitale = pd.merge(cpr_vitale_df_list, cpr_pato_miba_blood_medicine_diagnose, on='cpr')
 
 cpr_pato_miba_blood_medicine_diagnose_vitale.to_excel('bladder_infect_data.xlsx', index=False)
+
+"""
+import pandas as pd
+import ast
+import numpy as np
+from datetime import datetime
+
+
+# Function to convert string to list for selected columns in DataFrame
+def convert_string_to_list(df):
+    df_copy = df.copy()
+    for col in df.columns:
+        if col != 'cpr':
+            df_copy[col] = df[col].apply(lambda x: parse(x, col) if pd.notnull(x) else x)
+    return df_copy
+
+
+# Function to parse string to list
+def parse(x, col):
+    try:
+        x = x.replace('nan', 'None')
+        return ast.literal_eval(x)
+    except Exception as e:
+        print(f"Failed to parse: {x} in column: {col}")
+        return np.nan
+
+
+# Function to filter DataFrame rows based on codes
+def filter_row_based_on_pato_diagnoses(row):
+    diagnoses = row['pato_diagnoses']
+    if isinstance(diagnoses, list):
+        for i in reversed(range(len(diagnoses))):
+            if not any(code in diagnoses[i] for code in codes_to_keep):
+                for col in pato_cols:
+                    del row[col][i]
+    return row
+
+
+# Function to keep only the earliest record for each patient
+def keep_oldest_record_in_pato(row):
+    dates = row['pato_received_date']
+    if isinstance(dates, list) and len(dates) > 0:
+        oldest_date = min(dates, key=lambda x: datetime.strptime(x, '%d.%m.%Y'))
+        oldest_index = [i for i, date in enumerate(dates) if date == oldest_date]
+        for col in pato_cols:
+            row[col] = [row[col][i] for i in oldest_index]
+        row['pato_received_date'] = [oldest_date] * len(oldest_index)
+    return row
+
+
+# Function to collect diagnose codes and sample the rest of the text
+def collect_diagnose_codes_in_columns(data):
+    # (Documentation omitted for brevity)
+    # ...
+    return new_data
+
+
+# Function to filter DataFrame based on a list of keywords
+def filter_df_based_on_codes(df, codes_to_keep, cols_to_filter, filter_by_col_list):
+    # (Documentation omitted for brevity)
+    # ...
+    return df_copy
+
+
+# Function to replace None with a specified keyword in lists within DataFrame columns
+def replace_none_in_list(df, keyword):
+    # (Documentation omitted for brevity)
+    # ...
+    return df_copy
+
+
+# Function to convert list of string dates to datetime
+def convert_dates(date_list):
+    if not isinstance(date_list, list):
+        return []
+    return [pd.to_datetime(date) for date in date_list if pd.to_datetime(date, errors='coerce') is not pd.NaT]
+
+
+# Function to filter DataFrame to only include records before a specified date
+def filter_by_date(df1, df2, id_col, date_col_df1, date_col_df2, cols_to_filter):
+    # (Documentation omitted for brevity)
+    # ...
+    return df1_filtered
+
+
+# Function to filter lists in DataFrame based on a list of keywords
+def filter_lists(df, cols, keywords):
+    # (Documentation omitted for brevity)
+    # ...
+    return df
+
+
+# Main function to preprocess data
+def preprocess_data():
+    # Read the data
+    df = pd.read_csv('combine_all_data.csv')
+
+    # Convert string cells to list
+    cpr_pato_df_list = convert_string_to_list(df[cpr_pato_columns])
+
+    # Filter DataFrame rows based on codes
+    cpr_pato_df_list_contain_TCodes = cpr_pato_df_list.apply(filter_row_based_on_pato_diagnoses, axis=1)
+
+    # Keep only the earliest record for each patient
+    cpr_pato_TCodes_oldestDate = cpr_pato_df_list_contain_TCodes.apply(keep_oldest_record_in_pato, axis=1)
+
+    # Collect diagnose codes and sample the rest of the text
+    cpr_pato_TCodes_oldestDate_diagnoseCodes_df = collect_diagnose_codes_in_columns(cpr_pato_TCodes_oldestDate)
+
+    # Convert date strings to datetime
+    cpr_pato_TCodes_oldestDate_diagnoseCodes_df['pato_received_date'] = cpr_pato_TCodes_oldestDate_diagnoseCodes_df['pato_received_date'].apply(convert_dates)
+
+    # Filter DataFrame based on a list of keywords
+    cpr_miba_filterByKeywords = filter_df_based_on_codes(cpr_miba_df_list, miba_sample_type_keywords_to_keep, miba_cols, 'miba_sample_type')
+
+    # Replace None with a specified keyword in lists within DataFrame columns
+    cpr_miba_filterByKeywords_NoneToNegative = replace_none_in_list(cpr_miba_filterByKeywords, 'Negative')
+
+    # Convert date strings to datetime
+    cpr_miba_filterByKeywords_NoneToNegative['miba_collection_date'] = cpr_miba_filterByKeywords_NoneToNegative['miba_collection_date'].apply(convert_dates)
+
+    # Filter DataFrame to only include records before a specified date
+    filtered_miba_by_date_before_pato = filter_by_date(cpr_miba_filterByKeywords_NoneToNegative, cpr_pato_TCodes_oldestDate_diagnoseCodes_df,
+                                                       'cpr', 'miba_collection_date', 'pato_received_date', miba_cols)
+
+    # Merge two dataframes
+    cpr_pato_miba = pd.merge(filtered_miba_by_date_before_pato, cpr_pato_TCodes_oldestDate_diagnoseCodes_df, on='cpr')
+
+    # Convert date strings to datetime
+    cpr_blood_df_list['blood_date'] = cpr_blood_df_list['blood_date'].apply(convert_dates)
+
+    # Filter DataFrame based on a list of keywords
+    cpr_blood_filter = filter_lists(cpr_blood_df_list, blood_cols, blood_keywords)
+
+    # Filter DataFrame to only include records before a specified date
+    cpr_blood_filter_by_codes_and_dates = filter_by_date(cpr_blood_filter, cpr_pato_miba, 'cpr', 'blood_date',  'pato_received_date', blood_cols)
+
+    # Merge two dataframes
+    cpr_pato_miba_blood = pd.merge(cpr_blood_filter_by_codes_and_dates, cpr_pato_miba, on='cpr')
+
+    # Filter lists in DataFrame based on a list of keywords
+    cpr_medicine_filter_by_kewords = filter_lists(cpr_medicine_df_list, medicine_cols, medicine_keywords)
+
+    # Merge two dataframes
+    cpr_pato_miba_blood_medicine = pd.merge(cpr_medicine_filter_by_kewords, cpr_pato_miba_blood, on='cpr')
+
+    # Merge two dataframes
+    cpr_pato_miba_blood_medicine_diagnose = pd.merge(cpr_diagnose_df_list, cpr_pato_miba_blood_medicine, on='cpr')
+
+    # Merge two dataframes
+    cpr_pato_miba_blood_medicine_diagnose_vitale = pd.merge(cpr_vitale_df_list, cpr_pato_miba_blood_medicine_diagnose, on='cpr')
+
+    return cpr_pato_miba_blood_medicine_diagnose_vitale
+
+
+# Call the main function to preprocess data
+preprocessed_data = preprocess_data()
+"""
