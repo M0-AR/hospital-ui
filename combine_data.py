@@ -228,7 +228,41 @@ miba_medicin_diagnoses_pato_vitale_combined_data = pd.merge(miba_medicin_diagnos
 
 miba_medicin_diagnoses_pato_vitale_blood_combined_data = pd.merge(miba_medicin_diagnoses_pato_vitale_combined_data, blood_test_egg, on='cpr', how='outer')
 
-miba_medicin_diagnoses_pato_vitale_blood_combined_data.insert(0, 'record_id', range(1, 1 + len(miba_medicin_diagnoses_pato_vitale_blood_combined_data)))
+miba_medicin_diagnoses_pato_vitale_blood_combined_data.insert(0, 'record_id', [i for i in range(1, 1 + len(miba_medicin_diagnoses_pato_vitale_blood_combined_data))])
 
-miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_csv('combine_all_data.csv', index=False)
+
+def process_cell(cell_value):
+    # If cell_value is empty, return an empty string ""
+    if str(cell_value) == 'nan':
+        return ""
+
+    # Check if cell_value is already a list
+    if isinstance(cell_value, list):
+        # Convert list items to string, replace 'nan' with empty string
+        values = [str(item) if str(item) != 'nan' else '' for item in cell_value]
+        return '\"' + str(values) + '\"'
+
+    # If cell_value is a string and starts with "[" and ends with "]"
+    if isinstance(cell_value, str) and cell_value.startswith("[") and cell_value.endswith("]"):
+        # Strip off the brackets and split the string into a list based on comma separation
+        values = cell_value[1:-1].split(", ")
+
+        # Replace 'nan' with empty string
+        values = ['' if val.strip() == 'nan' else val for val in values]
+
+        # Convert list back to string representation
+        return values
+
+    # If it's neither a string in list format nor a list, return the cell_value as is
+    return cell_value
+
+
+# Apply the function to each cell in the dataframe
+miba_medicin_diagnoses_pato_vitale_blood_combined_data = miba_medicin_diagnoses_pato_vitale_blood_combined_data.applymap(process_cell)
+
+# Save with headers
+# miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_csv('combine_all_data.csv', index=False)
 # miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_excel('combine_all_data.xlsx', index=False)
+
+miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_csv('combine_all_data.csv', index=False, header=False)
+miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_excel('combine_all_data.xlsx', index=False, header=False)
