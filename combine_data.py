@@ -226,7 +226,7 @@ aggregations = {col: list for col in vitale_excels.columns if col != 'cpr'}
 vitale_egg = vitale_excels.groupby('cpr').agg(aggregations).reset_index()
 
 MAX_LEN = 32767
-
+MAX_LEN = 25000
 
 def custom_aggregate(series):
     columns_data = []
@@ -238,13 +238,13 @@ def custom_aggregate(series):
         cumulative_length += len(item_str)
 
         # If adding the cumulative length of items and the current_str exceeds MAX_LEN
-        if cumulative_length + 250 > MAX_LEN:  # Can use either cumulative_length or len(current_str)
+        if cumulative_length + 300 > MAX_LEN:  # Can use either cumulative_length or len(current_str)
             columns_data.append(current_str)
             current_str = ""
             cumulative_length = 0  # Reset the cumulative length for the new chunk
         else:
             # Separate 'item' by @ because we already have data some '3,2' as decimal number
-            current_str += '@' + item_str if current_str else item_str
+            current_str += '\'' + item_str + '\'' + ', ' if current_str else  item_str + '\'' + ', '
 
     # Add the last chunk if any data is left
     if current_str:
@@ -296,7 +296,7 @@ miba_medicin_diagnoses_pato_vitale_blood_combined_data.insert(0, 'record_id', [i
 def process_cell(cell_value):
     # If cell_value is empty, return an empty string ""
     if str(cell_value) == 'nan':
-        return ""
+        return "nan"
 
     # Check if cell_value is already a list
     if isinstance(cell_value, list):
@@ -315,6 +315,10 @@ def process_cell(cell_value):
         # Convert list back to string representation
         return values
 
+    # If cell_value is a string and NOT starts with "[" and ends with "]"
+    if isinstance(cell_value, str):
+        return '\"[\'' + str(cell_value) + '\']\"'
+
     # If it's neither a string in list format nor a list, return the cell_value as is
     return cell_value
 
@@ -324,5 +328,6 @@ miba_medicin_diagnoses_pato_vitale_blood_combined_data = miba_medicin_diagnoses_
     process_cell)
 
 # Save with headers
-# miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_csv('combine_all_data.csv', index=False, header=False)
-miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_excel('combine_all_data.xlsx', index=False, header=True)
+miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_csv('combine_all_data.csv', index=False, header=False)
+miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_excel('combine_all_data.xlsx', index=False, header=False)
+# miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_excel('combine_all_data.xlsx', index=False, header=True)
