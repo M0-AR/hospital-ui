@@ -90,6 +90,7 @@ def transform_vitale_data(original_data):
     # Return the tidy data
     return tidy_data
 
+
 def read_blood_test_excel_data():
     # Base directory
     base_directory = 'HospitalData'
@@ -134,6 +135,7 @@ def read_blood_test_excel_data():
 
     return data_frame
 
+
 def read_excel_data_into_dataframe(file=None):
     """
     Read Excel files from patient folders into a DataFrame.
@@ -169,6 +171,7 @@ def read_excel_data_into_dataframe(file=None):
 
     return data
 
+
 # Read Data
 # Read miba data
 miba_excels = read_excel_data_into_dataframe('miba.xlsx')
@@ -190,10 +193,19 @@ blood_test_excels = read_blood_test_excel_data()
 vitale_excels = transform_vitale_data(vitale_excels)
 
 # Rename Column
-miba_excels = miba_excels.rename(columns={'Prøvens art': 'miba_sample_type', 'Taget d.':'miba_collection_date', 'Kvantitet': 'miba_quantity', 'Analyser': 'miba_analysis', 'Resistens': 'miba_resistance', 'Mikroskopi': 'miba_microscopy'})
-medicin_excels = medicin_excels.rename(columns={'Medication': 'medicines_name', 'Start-Date': 'medicine_start_date', 'End-Date': 'medicine_end_date'})
+miba_excels = miba_excels.rename(
+    columns={'Prøvens art': 'miba_sample_type', 'Taget d.': 'miba_collection_date', 'Kvantitet': 'miba_quantity',
+             'Analyser': 'miba_analysis', 'Resistens': 'miba_resistance', 'Mikroskopi': 'miba_microscopy'})
+medicin_excels = medicin_excels.rename(
+    columns={'Medication': 'medicines_name', 'Start-Date': 'medicine_start_date', 'End-Date': 'medicine_end_date'})
 diagnoses_excels = diagnoses_excels.rename(columns={'note': 'diagnose_note', 'date': 'diagnose_date'})
-pato_bank_excels = pato_bank_excels.rename(columns={'Modtaget': 'pato_received_date', 'Serviceyder': 'pato_service_provider', 'Rekv.nr.': 'pato_request_number', 'Kategori': 'pato_category', 'Diagnoser': 'pato_diagnoses', 'Mat.nr.	Beskrivelse af materiale/prøve': 'pato_material_description_of_smple', 'Konklusion': 'pato_conclusion', 'Mikroskopi': 'pato_microscopy', 'Andre undersøgelser': 'pato_other_investigations', 'Makroskopi': 'pato_macroscopy', 'Kliniske oplysninger': 'pato_clinical_information'})
+pato_bank_excels = pato_bank_excels.rename(
+    columns={'Modtaget': 'pato_received_date', 'Serviceyder': 'pato_service_provider',
+             'Rekv.nr.': 'pato_request_number', 'Kategori': 'pato_category', 'Diagnoser': 'pato_diagnoses',
+             'Mat.nr.	Beskrivelse af materiale/prøve': 'pato_material_description_of_smple',
+             'Konklusion': 'pato_conclusion', 'Mikroskopi': 'pato_microscopy',
+             'Andre undersøgelser': 'pato_other_investigations', 'Makroskopi': 'pato_macroscopy',
+             'Kliniske oplysninger': 'pato_clinical_information'})
 blood_test_excels = blood_test_excels.rename(columns={'content': 'blood_content'})
 
 # Aggregate Data into List
@@ -213,8 +225,54 @@ pato_bank_egg = pato_bank_excels.groupby('cpr').agg(aggregations).reset_index()
 aggregations = {col: list for col in vitale_excels.columns if col != 'cpr'}
 vitale_egg = vitale_excels.groupby('cpr').agg(aggregations).reset_index()
 
-aggregations = {col: list for col in blood_test_excels.columns if col != 'cpr'}
+MAX_LEN = 32767
+
+
+def custom_aggregate(series):
+    columns_data = []
+    current_str = ""
+    cumulative_length = 0  # This will keep a running count of the items' lengths in the series
+
+    for item in series:
+        item_str = str(item)
+        cumulative_length += len(item_str)
+
+        # If adding the cumulative length of items and the current_str exceeds MAX_LEN
+        if cumulative_length + 250 > MAX_LEN:  # Can use either cumulative_length or len(current_str)
+            columns_data.append(current_str)
+            current_str = ""
+            cumulative_length = 0  # Reset the cumulative length for the new chunk
+        else:
+            # Separate 'item' by @ because we already have data some '3,2' as decimal number
+            current_str += '@' + item_str if current_str else item_str
+
+    # Add the last chunk if any data is left
+    if current_str:
+        columns_data.append(current_str)
+
+    return columns_data
+
+
+aggregations = {col: custom_aggregate for col in blood_test_excels.columns if col != 'cpr'}
 blood_test_egg = blood_test_excels.groupby('cpr').agg(aggregations).reset_index()
+
+
+def explode_list_columns(df):
+    """Expand columns with list entries into separate columns."""
+    for col in df.columns:
+        # If any cell in the column is a list, we proceed
+        if any(isinstance(cell, list) for cell in df[col]):
+            # Create separate columns for each item in the list
+            exploded = df[col].apply(pd.Series)
+            exploded.columns = [f"{col}_{i}" for i in range(1, len(exploded.columns) + 1)]
+
+            # Drop original column and append exploded columns to dataframe
+            df = df.drop(col, axis=1).join(exploded)
+    return df
+
+
+# Process your dataframe
+blood_test_egg_exploded = explode_list_columns(blood_test_egg)
 
 # Combine Data
 # Merge the two DataFrames based on the 'cpr' column
@@ -222,13 +280,17 @@ miba_medicin_combined_data = pd.merge(miba_agg, medicin_agg, on='cpr', how='oute
 
 miba_medicin_diagnoses_combined_data = pd.merge(miba_medicin_combined_data, diagnoses_egg, on='cpr', how='outer')
 
-miba_medicin_diagnoses_pato_combined_data = pd.merge(miba_medicin_diagnoses_combined_data, pato_bank_egg, on='cpr', how='outer')
+miba_medicin_diagnoses_pato_combined_data = pd.merge(miba_medicin_diagnoses_combined_data, pato_bank_egg, on='cpr',
+                                                     how='outer')
 
-miba_medicin_diagnoses_pato_vitale_combined_data = pd.merge(miba_medicin_diagnoses_pato_combined_data, vitale_egg, on='cpr', how='outer')
+miba_medicin_diagnoses_pato_vitale_combined_data = pd.merge(miba_medicin_diagnoses_pato_combined_data, vitale_egg,
+                                                            on='cpr', how='outer')
 
-miba_medicin_diagnoses_pato_vitale_blood_combined_data = pd.merge(miba_medicin_diagnoses_pato_vitale_combined_data, blood_test_egg, on='cpr', how='outer')
+miba_medicin_diagnoses_pato_vitale_blood_combined_data = pd.merge(miba_medicin_diagnoses_pato_vitale_combined_data,
+                                                                  blood_test_egg_exploded, on='cpr', how='outer')
 
-miba_medicin_diagnoses_pato_vitale_blood_combined_data.insert(0, 'record_id', [i for i in range(1, 1 + len(miba_medicin_diagnoses_pato_vitale_blood_combined_data))])
+miba_medicin_diagnoses_pato_vitale_blood_combined_data.insert(0, 'record_id', [i for i in range(1, 1 + len(
+    miba_medicin_diagnoses_pato_vitale_blood_combined_data))])
 
 
 def process_cell(cell_value):
@@ -258,11 +320,9 @@ def process_cell(cell_value):
 
 
 # Apply the function to each cell in the dataframe
-miba_medicin_diagnoses_pato_vitale_blood_combined_data = miba_medicin_diagnoses_pato_vitale_blood_combined_data.applymap(process_cell)
+miba_medicin_diagnoses_pato_vitale_blood_combined_data = miba_medicin_diagnoses_pato_vitale_blood_combined_data.applymap(
+    process_cell)
 
 # Save with headers
-# miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_csv('combine_all_data.csv', index=False)
-# miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_excel('combine_all_data.xlsx', index=False)
-
-miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_csv('combine_all_data.csv', index=False, header=False)
-miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_excel('combine_all_data.xlsx', index=False, header=False)
+# miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_csv('combine_all_data.csv', index=False, header=False)
+miba_medicin_diagnoses_pato_vitale_blood_combined_data.to_excel('combine_all_data.xlsx', index=False, header=True)
