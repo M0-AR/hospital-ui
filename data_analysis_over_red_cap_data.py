@@ -95,10 +95,32 @@ def get_sections_by_keyword(df, keywords):
     return sections
 
 
+import pandas as pd
+
 # Reading the CSV file
 file_path = "20_record_data.csv"
 # df = pd.read_csv(file_path)
 df = pd.read_csv(file_path, nrows=5)
+
+# Define the list of columns to be removed
+columns_to_remove = ['test_complete']
+
+# Use the drop method to remove the specified columns
+df = df.drop(columns=columns_to_remove)
+
+# Get columns that start with 'blood'
+blood_columns = [col for col in df.columns if col.lower().startswith('blood')]
+
+# Include 'record_id' in the list of columns to be copied to df_blood
+blood_columns_with_id = ['record_id'] + blood_columns
+
+# Create new DataFrame with columns that start with 'blood' and 'record_id'
+df_blood = df[blood_columns_with_id].copy()
+
+# Drop only the 'blood' columns from the original DataFrame, keep 'record_id'
+df.drop(columns=blood_columns, inplace=True)
+
+# Now, df is the original DataFrame without the 'blood' columns, and df_blood is a new DataFrame containing only the 'blood' columns.
 
 
 import ast
@@ -173,6 +195,91 @@ for idx, row in df.iterrows():
 
 # Convert the list of dictionaries to a DataFrame
 unstacked_df = pd.DataFrame(unstacked_data)
+unstacked_df.drop(columns=['record_id'], inplace=True)
+
+# Replace NaN values with 'None'
+unstacked_df.fillna('None', inplace=True)
+
+# Replace empty strings with 'None'
+unstacked_df.replace('', 'None', inplace=True)
+import re
+
+# Iterate over each column in the DataFrame, except 'original_id'
+for column in unstacked_df.columns:
+    if column == 'original_id':
+        continue  # Skip the 'original_id' column
+
+    # Replace '\n' with ' ' in each column
+    # unstacked_df[column] = unstacked_df[column].apply(lambda x: x.replace('\n', '') if isinstance(x, str) else x)
+
+    # Replace '\t' with '|' in each column
+    unstacked_df[column] = unstacked_df[column].apply(lambda x: re.sub('\t+', '|', x) if isinstance(x, str) else x)
+
+    # Normalize Data: Convert to lowercase and strip leading and trailing whitespaces
+    unstacked_df[column] = unstacked_df[column].apply(lambda x: x.lower().strip() if isinstance(x, str) else x)
+
+# Replace '|s' with 's' in the 'miba_resistance' column
+unstacked_df['miba_resistance'] = unstacked_df['miba_resistance'].apply(
+    lambda x: x.replace('|s', 's') if isinstance(x, str) else x
+)
+
+# Replace '|s' with 's' in the 'miba_resistance' column
+unstacked_df['miba_resistance'] = unstacked_df['miba_resistance'].apply(
+    lambda x: x.replace('|r', 'r') if isinstance(x, str) else x
+)
+
+# Fill NA/NaN values
+unstacked_df.fillna('none', inplace=True)
+
+# Normalize string data (excluding 'original_id' column)
+str_columns = unstacked_df.select_dtypes(include=['object']).columns
+str_columns = str_columns.difference(['original_id'])
+unstacked_df[str_columns] = unstacked_df[str_columns].applymap(lambda x: x.lower().strip() if isinstance(x, str) else x)
+
+# Ensure that the date columns are in a datetime format.
+unstacked_df['miba_collection_date'] = pd.to_datetime(unstacked_df['miba_collection_date'], dayfirst=True, errors='coerce')
+unstacked_df['medicine_start_date'] = pd.to_datetime(unstacked_df['medicine_start_date'], dayfirst=True, errors='coerce')
+unstacked_df['medicine_end_date'] = pd.to_datetime(unstacked_df['medicine_end_date'], dayfirst=True, errors='coerce')
+unstacked_df['diagnose_date'] = pd.to_datetime(unstacked_df['diagnose_date'], dayfirst=True, errors='coerce')
+unstacked_df['pato_received_date'] = pd.to_datetime(unstacked_df['pato_received_date'], dayfirst=True, errors='coerce')
+unstacked_df['vitale_measurement_date'] = pd.to_datetime(unstacked_df['vitale_measurement_date'], dayfirst=True, errors='coerce')
+
+
+# Replace any digit followed by a dot either at the beginning of the string or after a newline character with an empty string
+unstacked_df['miba_quantity'] = unstacked_df['miba_quantity'].replace(r'(^|\n)\d+\.', r'\1', regex=True)
+
+"""
+2. Exploratory Data Analysis (EDA):
+2.1 Summary Statistics:
+"""
+pd.set_option('display.max_rows', 20)
+pd.set_option('display.max_columns', 50)
+pd.set_option('display.max_colwidth', None)
+
+print(unstacked_df.describe(include='all'))  # include='all' will include statistics for all columns irrespective of their data type
+
+"""
+2.3 Categorical Data Analysis:
+
+Explore the unique values and their counts for categorical columns.
+"""
+unstacked_df['miba_sample_type'].value_counts()
+
+"""
+4. Data Visualization:
+Create meaningful visualizations like line plots, bar plots, pie charts, etc., based on the insights you gather.
+"""
+import matplotlib
+# matplotlib.use('TkAgg')
+
+import matplotlib.pyplot as plt
+
+unstacked_df['miba_sample_type'].value_counts().plot(kind='bar')
+plt.show()
+
+
+
+
 # Define keywords for sections
 keywords = ['miba', 'medicine', 'diagnose', 'pato', 'vital', 'blood']
 
