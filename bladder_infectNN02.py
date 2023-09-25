@@ -1,9 +1,11 @@
 import pandas as pd
 import ast
 import numpy as np
+import math
 
 # Read the data
 df = pd.read_excel('combine_all_data.xlsx')
+# df = pd.read_csv('20_record_data.csv')
 
 # ------------------- Convert string cells to list in selected columns ----------
 # Select columns that start with "pato" or "cpr"
@@ -12,6 +14,61 @@ cpr_pato_columns = [col for col in df.columns if col.startswith(('cpr', 'pato'))
 # Create a new dataframe with only the selected columns
 cpr_pato_df = df[cpr_pato_columns]
 
+def validate_and_clean_item(item):
+    """
+    Validates and cleans individual list items.
+    """
+    cleaned_item = item.strip().strip("'\"")
+    try:
+        ast.literal_eval(f"'{cleaned_item}'")
+    except SyntaxError:
+        print(f"validate_and_clean_item(): Error on: {cleaned_item}.")
+        cleaned_item = cleaned_item.replace("'", r"\'")
+    return cleaned_item
+
+def check_individual_items(string_list_repr):
+    """
+    Processes a string representing a list, attempting to validate and clean each item.
+    """
+    items = string_list_repr.strip('[]').split(',')
+    return [validate_and_clean_item(item) for item in items]
+
+def handle_malformed_string(s):
+    """
+    Fixes common malformed patterns in the string.
+    """
+    # Remove trailing , ']'
+    if s.endswith(', \']'):
+        s = s[:-3] + ']'
+    # Remove trailing comma before ']'
+    if s.endswith(',]'):
+        s = s[:-2] + ']'
+    return s
+
+def safe_literal_eval(s):
+    """
+    Attempts to convert a string representation of lists to an actual list.
+    """
+    if pd.isna(s):
+        return []
+
+    s = str(s).strip("'\"")  # Remove surrounding single or double quotes
+
+    s = handle_malformed_string(s)
+
+    try:
+        return ast.literal_eval(s)
+    except SyntaxError:
+        return check_individual_items(s)
+
+def parse(x, col):
+    try:
+        x = x.replace('nan', 'None')  # Replace 'nan' with 'None'
+        # return ast.literal_eval(x)
+        return safe_literal_eval(x)
+    except Exception as e:
+        print(f"Failed to parse column: {col}")
+        return np.nan
 
 def convert_string_to_list(df):
     """
@@ -30,13 +87,6 @@ def convert_string_to_list(df):
     return df_copy
 
 
-def parse(x, col):
-    try:
-        x = x.replace('nan', 'None')  # Replace 'nan' with 'None'
-        return ast.literal_eval(x)
-    except Exception as e:
-        print(f"Failed to parse: {x} in column: {col}")
-        return np.nan
 
 
 # Usage
@@ -229,6 +279,7 @@ def collect_diagnose_codes_in_columns(data):
 
 # Call the function with the sample data
 cpr_pato_TCodes_oldestDate_diagnoseCodes_df = collect_diagnose_codes_in_columns(cpr_pato_TCodes_oldestDate)
+
 # TODO one cell has two diagnoseCodes where to 'sample the rest of the text'
 # TODO docs: if the cell contain '\n[1] \n[3] \n[5]' that mean we found diagnose's code but there is no rest of the text to sample
 # ----------------------------------------
@@ -345,7 +396,6 @@ cpr_miba_filterByKeywords_NoneToNegative = replace_none_in_list(cpr_miba_filterB
 
 # ----------------------------------------
 # Filter the miba DataFrame based on the miba_collection_date column so that only records that occurred before the pato_received_date in the pato DataFrame are kept.
-
 def convert_dates(date_list):
     # Check if date_list is not iterable (float, None etc.)
     if not isinstance(date_list, list):
@@ -356,7 +406,9 @@ def convert_dates(date_list):
 
 # Apply the function to each row of 'miba_collection_date' and 'pato_received_date'
 cpr_miba_filterByKeywords_NoneToNegative['miba_collection_date'] = cpr_miba_filterByKeywords_NoneToNegative['miba_collection_date'].apply(convert_dates)
+# print(cpr_miba_filterByKeywords_NoneToNegative['miba_collection_date'])
 cpr_pato_TCodes_oldestDate_diagnoseCodes_df['pato_received_date'] = cpr_pato_TCodes_oldestDate_diagnoseCodes_df['pato_received_date'].apply(convert_dates)
+# print(cpr_pato_TCodes_oldestDate_diagnoseCodes_df['pato_received_date'])
 
 def filter_by_date(df1, df2, id_col, date_col_df1, date_col_df2, cols_to_filter):
     """
@@ -402,6 +454,7 @@ def filter_by_date(df1, df2, id_col, date_col_df1, date_col_df2, cols_to_filter)
 
     return df1_filtered
 
+
 # Use the function to filter cpr_miba_filterByKeywords_NoneToNegative
 filtered_miba_by_date_before_pato = filter_by_date(cpr_miba_filterByKeywords_NoneToNegative, cpr_pato_TCodes_oldestDate_diagnoseCodes_df,
                                                    'cpr', 'miba_collection_date', 'pato_received_date', miba_cols)
@@ -413,15 +466,30 @@ cpr_pato_miba = pd.merge(filtered_miba_by_date_before_pato, cpr_pato_TCodes_olde
 # ---------------------------------------
 # ---------------------------------------
 
+
+
+def convert_dates(date_list):
+    # Check if date_list is not iterable (float, None etc.)
+    if not isinstance(date_list, list):
+        return []
+
+    # Converts a list of strings to datetime, ignoring non-dates and None values
+    return [pd.to_datetime(date) for date in date_list if pd.to_datetime(date, errors='coerce') is not pd.NaT]
+
 # Select columns that start with "blood" or "cpr"
-cpr_medicine_columns = [col for col in df.columns if col.startswith(('cpr', 'blood'))]
+cpr_blood_columns = [col for col in df.columns if col.startswith(('cpr', 'blood'))]
 
 # Create a new dataframe with only the selected columns
-cpr_medicine_df = df[cpr_medicine_columns]
+cpr_blood_df = df[cpr_blood_columns]
 
-blood_cols = [col for col in df.columns if col.startswith(('blood'))]
+
+# # Convert the string representation of lists to actual lists using the safe function
+# for col in blood_cols:
+#     cpr_blood_df[col] = cpr_blood_df[col].apply(safe_literal_eval)
+
 # Usage
-cpr_blood_df_list = convert_string_to_list(cpr_medicine_df)
+cpr_blood_df_list = convert_string_to_list(cpr_blood_df)
+# cpr_blood_df_list = cpr_blood_df
 # ---------------------------------------
 
 # Only data concerning
@@ -471,12 +539,40 @@ def filter_lists(df, cols, keywords):
     return df
 
 
-cpr_blood_filter = filter_lists(cpr_blood_df_list, blood_cols, keywords)
+# Merge blood columns 
+blood_date_cols = [col for col in cpr_blood_df_list.columns if col.startswith('blood_date')]
+blood_content_cols = [col for col in cpr_blood_df_list.columns if col.startswith('blood_content')]
 
-cpr_blood_filter['blood_date'] = cpr_blood_filter['blood_date'].apply(convert_dates)
+cpr_blood_df_list['blood_date'] = None
+cpr_blood_df_list['blood_content'] = None
 
-# TODO: this invocation is slow
-cpr_blood_filter_by_codes_and_dates = filter_by_date(cpr_blood_filter, cpr_pato_miba, 'cpr', 'blood_date',  'pato_received_date', blood_cols)
+for index, row in cpr_blood_df_list.iterrows():
+    merged_date_list = []
+    merged_content_list = []
+
+    for col in blood_date_cols:
+        row_data = row[col]
+        if isinstance(row_data, list):
+            merged_date_list.extend(row_data)
+    for col in blood_content_cols:
+        row_data = row[col]
+        if isinstance(row_data, list):
+            merged_content_list.extend(row_data)
+
+    cpr_blood_df_list.at[index, 'blood_date'] = merged_date_list
+    cpr_blood_df_list.at[index, 'blood_content'] = merged_content_list
+ 
+# Remove undesire columns
+blood_date_cols = [col for col in cpr_blood_df_list.columns if col.startswith('blood_date_')]
+blood_content_cols = [col for col in cpr_blood_df_list.columns if col.startswith('blood_content_')]
+cpr_blood_df_list = cpr_blood_df_list.drop(columns=blood_date_cols + blood_content_cols)
+
+# Fliter 
+blood_cols = [col for col in cpr_blood_df_list.columns if col.startswith(('blood'))]
+cpr_blood_codes_filter = filter_lists(cpr_blood_df_list, blood_cols, keywords)
+
+cpr_blood_codes_filter['blood_date'] = cpr_blood_codes_filter['blood_date'].apply(convert_dates)
+cpr_blood_filter_by_codes_and_dates = filter_by_date(cpr_blood_codes_filter, cpr_pato_miba, 'cpr', 'blood_date',  'pato_received_date', blood_cols)
 
 # Merge two dataframe
 cpr_pato_miba_blood = pd.merge(cpr_blood_filter_by_codes_and_dates, cpr_pato_miba, on='cpr')
