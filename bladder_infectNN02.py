@@ -3,7 +3,7 @@ import ast
 import numpy as np
 
 # Read the data
-df = pd.read_csv('combine_all_data.csv')
+df = pd.read_excel('combine_all_data.xlsx')
 
 # ------------------- Convert string cells to list in selected columns ----------
 # Select columns that start with "pato" or "cpr"
@@ -155,7 +155,25 @@ def collect_diagnose_codes_in_columns(data):
         "M81303 urotelial tumor",
         "M80703 planocellulært karcinom",
         "M81403 adenokarcinom",
-        "M69760 malignitetssuspekte celler"
+        "M69760 malignitetssuspekte celler",
+        "ÆF1810 pTis",
+        "ÆF181a pTa",
+        "ÆF1820 pT0",
+        "ÆF1830 pT1",
+        "ÆF1831 pT1a",
+        "ÆF1832 pT1b",
+        "ÆF1840 pT2",
+        "ÆF1841 pT2a",
+        "ÆF1842 pT2b",
+        "ÆF1850 pT3",
+        "ÆF1861 pT4a",
+        "ÆF1862 pT4b",
+        "ÆF1870 pTx",
+        "ÆF1900 pN0",
+        "ÆF1910 pN1",
+        "ÆF1920 pN2",
+        "ÆF1930 pN3",
+        "ÆF1950 pNx"
     ]
 
     # Copy the original DataFrame and add new columns initialized with an empty string
@@ -163,7 +181,11 @@ def collect_diagnose_codes_in_columns(data):
     for column in diagnose_codes:
         new_data[column] = ''
 
-    # Iterating through each row of the DataFrame
+    # Initialize new columns with 'No'
+    for code in diagnose_codes:
+        new_data[code] = 'No'
+
+    # Iterate through each row of the DataFrame
     for idx, row in new_data.iterrows():
         diagnoser = row['pato_diagnoses']
 
@@ -171,32 +193,37 @@ def collect_diagnose_codes_in_columns(data):
         if pd.isnull(diagnoser):
             continue
 
-        # Iterate over each section in the diagnoser list
-        for section in diagnoser:
-            lines = section.split('[')
+        # Check for the presence of each code in 'diagnoser' and update the corresponding column with 'Yes' if found
+        for code in diagnose_codes:
+            if code in diagnoser:
+                new_data.at[idx, code] = 'Yes'
 
-            # Iterate over each pair of lines (code and value) in the section
-            for i in range(1, len(lines), 2):
-                code_line = lines[i].strip()
-
-                if not code_line:
-                    continue
-
-                column_name1 = code_line.split('\n')[1].strip()
-                code1 = column_name1.split()[0]  # Extract the code part
-
-                column_name2 = code_line.split('\n')[2].strip()
-                code2 = column_name2.split()[0]  # Extract the code part
-
-                code_line_data = '\n'.join(code_line.split('\n')[3:]).strip()
-
-                # TODO: ADD value as a list not string
-                # Adjust the condition to check for the code in the columns
-                for column in diagnose_codes:
-                    if column.startswith(code1):
-                        new_data.at[idx, column] += '\n' + f'[{i}] ' + code_line_data
-                    if column.startswith(code2):
-                        new_data.at[idx, column] += '\n' + f'[{i}] ' + code_line_data
+        # # Iterate over each section in the diagnoser list
+        # for section in diagnoser:
+        #     lines = section.split('[')
+        #
+        #     # Iterate over each pair of lines (code and value) in the section
+        #     for i in range(1, len(lines), 2):
+        #         code_line = lines[i].strip()
+        #
+        #         if not code_line:
+        #             continue
+        #
+        #         column_name1 = code_line.split('\n')[1].strip()
+        #         code1 = column_name1.split()[0]  # Extract the code part
+        #
+        #         column_name2 = code_line.split('\n')[2].strip()
+        #         code2 = column_name2.split()[0]  # Extract the code part
+        #
+        #         code_line_data = '\n'.join(code_line.split('\n')[3:]).strip()
+        #
+        #         # TODO: ADD value as a list not string
+        #         # Adjust the condition to check for the code in the columns
+        #         for column in diagnose_codes:
+        #             if column.startswith(code1):
+        #                 new_data.at[idx, column] += '\n' + f'[{i}] ' + code_line_data
+        #             if column.startswith(code2):
+        #                 new_data.at[idx, column] += '\n' + f'[{i}] ' + code_line_data
 
     return new_data
 
