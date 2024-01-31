@@ -106,7 +106,7 @@ def extract_latest_patient_biochemistry_data_before_operation(file_name, base_di
 
 # Example usage
 file_name = 'blood_test.xlsx'
-base_directory = '../data'
+base_directory = 'C:\\src\\hospital-ui\\renal_cancer_porject\\data'
 operation_date = '01-01-19 08:00'  # Operation date in 'dd-mm-yy HH:MM' format
 biochemistry_keys = ['crp', 'Leukocytter', 'Neutrofili', 'Sedimentationsrate', 'Hæmoglobin']
 
