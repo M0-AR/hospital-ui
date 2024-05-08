@@ -278,8 +278,7 @@ def read_patient_operation_dates(file_path):
     dates = {row['PatientID']: row['EarliestDiagnosisDate'] for index, row in df.iterrows()}
     return dates
 
-def extract_latest_patient_biochemistry_data_before_operation(file_name, base_directory, patient_date_file,
-                                                              biochemistry_keys):
+def extract_latest_patient_biochemistry_data_before_operation(file_name, base_directory, patient_date_file):
     """
     Extracts the latest biochemistry data for each patient before their specific operation date.
 
@@ -293,7 +292,7 @@ def extract_latest_patient_biochemistry_data_before_operation(file_name, base_di
         pd.DataFrame: DataFrame containing the latest biochemistry data for each patient.
     """
     patient_dates = read_patient_operation_dates(patient_date_file)
-    print(patient_dates)
+    # print(patient_dates)
     patient_data = []
 
     for patient_dir in os.listdir(base_directory):
@@ -302,35 +301,36 @@ def extract_latest_patient_biochemistry_data_before_operation(file_name, base_di
             file_path = os.path.join(patient_path, file_name)
             if os.path.isfile(file_path) and patient_dir in patient_dates:
                 operation_date_obj = patient_dates[patient_dir]  # This is already a datetime object
-                # closest_row_data, closest_date = process_excel_file(file_path, biochemistry_keys, operation_date_obj)
                 # Inside the loop of extract_latest_patient_biochemistry_data_before_operation
                 closest_row_data, closest_date = process_excel_file(file_path, operation_date_obj)
-                print(closest_row_data)
-                print(closest_date)
+                # print(closest_row_data)
+                # print(closest_date)
                 if closest_date:
                     patient_data.append({
-                        # 'cpr': patient_dir,
-                        # 'BloodTestDate': closest_date.strftime("%d-%m-%Y %H:%M"),
+                        'PatientID': patient_dir,
                         **closest_row_data
                     })
 
-    return pd.DataFrame(patient_data)
+    return pd.DataFrame([{
+        key if key == 'PatientID' else f'before_surgery_{key}': value
+        for key, value in data.items()
+    } for data in patient_data])
+
 
 import pandas as pd
 
 # Define the parameters
-file_name = 'blood_test.xlsx'
-base_directory = 'C:\\src\\hospital-ui\\renal_cancer_porject\\data'
-patient_date_file = 'C:\\Users\\md\\Downloads\\rcc.xlsx'
-biochemistry_keys = ['crp', 'Leukocytter', 'Neutrofili', 'Sedimentationsrate', 'Hæmoglobin']
-
-# Call the function
-blood_test_data = extract_latest_patient_biochemistry_data_before_operation(
-    file_name=file_name,
-    base_directory=base_directory,
-    patient_date_file=patient_date_file,
-    biochemistry_keys=biochemistry_keys
-)
-
-# Print or process the DataFrame
-print(blood_test_data)
+# file_name = 'blood_test.xlsx'
+# base_directory = 'C:\\src\\hospital-ui\\renal_cancer_porject\\data'
+# patient_date_file = 'C:\\Users\\md\\Downloads\\rcc.xlsx'
+# biochemistry_keys = ['crp', 'Leukocytter', 'Neutrofili', 'Sedimentationsrate', 'Hæmoglobin']
+#
+# # Call the function
+# blood_test_data = extract_latest_patient_biochemistry_data_before_operation(
+#     file_name=file_name,
+#     base_directory=base_directory,
+#     patient_date_file=patient_date_file
+# )
+#
+# # Print or process the DataFrame
+# print(blood_test_data)
