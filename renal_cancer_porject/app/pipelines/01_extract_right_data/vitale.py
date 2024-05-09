@@ -43,7 +43,6 @@ def calculate_bmi(weight_kg, height_cm):
     Returns:
     float: Calculated BMI.
     """
-    # Convert height from cm to m
     height_m = convert_cm_to_m(height_cm)
     return weight_kg / (height_m ** 2)
 
