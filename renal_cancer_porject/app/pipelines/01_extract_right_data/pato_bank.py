@@ -1,6 +1,7 @@
 import pandas as pd
-import os
 import traceback
+import os
+import re
 
 subtype_mapping = {
     "M82603": "papillært adenokarcinom",
@@ -204,6 +205,67 @@ def parse_diagnosis_detail(diagnosis_details, mapping_dict):
     return None, None  # Return a tuple with both elements as None if no match is found
 
 
+def extract_details_from_other(other_text):
+    """
+    Extracts additional details from the 'Other' text and returns a dictionary of the parsed fields.
+
+    Parameters:
+    other_text (str): The text to parse.
+
+    Returns:
+    dict: Dictionary containing parsed data.
+    """
+    mappings = {
+        "TumorSize": {
+            "ÆTD": {"pattern": r"ÆTD(\d{3})\s*tumordiameter (\d+ mm)", "group": 1}
+        },
+        "Side": {
+            "T71010": {"pattern": "T71010 Højre nyre", "group": 0},
+            "T71020": {"pattern": "T71020 Venstre nyre", "group": 0}
+        },
+        "Karination": {
+            "M09420": {"pattern": "M09420 karinvasion ikke påvist", "group": 0},
+            "M09421": {"pattern": "M09421 karinvasion påvist", "group": 0}
+        },
+        "PapellerTumorType": {
+            "ÆYYY41": {"pattern": "ÆYYY41 type 1", "group": 0},
+            "ÆYYY42": {"pattern": "ÆYYY42 type 2", "group": 0}
+        },
+        "OperationType": {
+            "P306X4": {"pattern": "P306X4 tumorektomi", "group": 0},
+            "P306X0": {"pattern": "P306X0 ektomipraeparat", "group": 0}
+        },
+        "Biopsi": {
+            "P30990": {"pattern": "P30990 nålebiopsi", "group": 0}
+        },
+        "Lymphadenectomy": {
+            "ÆLY007": {"pattern": "ÆLY007 lymfeknuder", "group": 0},
+            "T0857": {"pattern": "T0857", "group": 0},
+            "T0858": {"pattern": "T0858", "group": 0}
+        },
+        "LymphnodesMetastasis": {
+            "ÆLX001": {"pattern": "ÆLX001 lymfeknudemetastaser", "group": 0}
+        },
+        "Rhabdoid": {
+            "ÆYYY0Z": {"pattern": "ÆYYY0Z rhabdoid", "group": 0}
+        }
+    }
+
+    details = {}
+    for key, sub_mappings in mappings.items():
+        for code, info in sub_mappings.items():
+            match = re.search(info["pattern"], other_text)
+            if match:
+                details[key] = match.group(info["group"])
+                # Optional: remove found data from other_text to avoid duplication
+                other_text = re.sub(info["pattern"], '', other_text)
+            else:
+                details[key] = ''
+    details['RemainingTextInOther'] = other_text.strip()  # To store any text that was not matched
+    return details
+
+
+
 def extract_patient_diagnosis_records(patient_df, patient_id, mappings):
     """
     Extracts and compiles key information from the earliest occurrence of specified diagnosis codes in a patient's data.
@@ -258,7 +320,11 @@ def extract_patient_diagnosis_records(patient_df, patient_id, mappings):
                     diagnoser_text = diagnoser_text.replace(extracted_value, "")
 
             # Assign remaining text to 'Other'.
-            record['Other'] = diagnoser_text.strip()
+            # record['Other'] = diagnoser_text.strip()
+
+            # Extract additional details from the 'Other' column
+            additional_details = extract_details_from_other(diagnoser_text.strip())
+            record.update(additional_details)
 
             records.append(record)
 
@@ -444,6 +510,7 @@ initial_diagnoses, recurrences = consolidate_patient_data('pato_bank.xlsx',
 
 # Save the initial_diagnoses DataFrame to an Excel file
 # initial_diagnoses.to_excel('rcc.xlsx', index=False)
+# initial_diagnoses.to_excel('rcc_new.xlsx', index=False)
 
 # Save the recurrences DataFrame to another Excel file
 # recurrences.to_excel('recurrences.xlsx', index=False)
