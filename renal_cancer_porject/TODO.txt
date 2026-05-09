@@ -1,0 +1,45 @@
+- https://dev.to/azadkshitij/data-science-project-structure-5dh
+
+-
+import pandas as pd
+
+# Assuming df is a DataFrame with an 'age' column
+df['age_category'] = pd.cut(df['age'], bins=[0, 60, 70, 120], labels=["<60", "60-70", ">70"], right=False)
+
+To remind you later about the age categorizations, you can define an Enum that represents these age brackets. While the actual age will be stored as a floating-point number (as previously discussed), this Enum can serve as a reference for how you might want to categorize ages during analysis or reporting.
+
+Here's an Enum that represents the age brackets <60, 60-70, and >70:
+
+python
+Copy code
+from enum import Enum, auto
+
+class AgeCategory(Enum):
+    UNDER_60 = "<60"
+    BETWEEN_60_AND_70 = "60-70"
+    OVER_70 = ">70"
+
+    def __str__(self):
+        return self.value
+In this Enum:
+
+UNDER_60 represents ages less than 60.
+BETWEEN_60_AND_70 represents ages between 60 and 70.
+OVER_70 represents ages greater than 70.
+You can use this Enum as a reference when categorizing ages in your analysis. For example, when processing your data, you might categorize ages like this:
+
+python
+Copy code
+def categorize_age(age: float) -> AgeCategory:
+    if age < 60:
+        return AgeCategory.UNDER_60
+    elif 60 <= age < 70:
+        return AgeCategory.BETWEEN_60_AND_70
+    else:
+        return AgeCategory.OVER_70
+
+# Example Usage
+age_category = categorize_age(65)  # This will be AgeCategory.BETWEEN_60_AND_70
+print(age_category)
+This Enum serves as a useful guide and can be integrated into any analysis or data processing steps where such age categorization is required.
+
